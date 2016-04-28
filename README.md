@@ -1,56 +1,85 @@
 # PyDAIR
 
-PyDAIR is a Python library for diversity analysis of immune repertoire.
-PyDAIR provides methods for analyzing the followings features:
+PyDAIR is a Python package that aims to study immunoglobulin heavy (IGH) chain diversity
+based on repertoire-sequencing (Rep-Seq) data using high-throughput sequencing techonologies.
+PyDAIR identifies the germline variable (V), diversity (D), and joining (J) genes that
+used by each IGH sequence.
+BLAST is used for aligning sequences to a database of known germline VDJ genes to assign VDJ.
+PyDAIR supports all features as long as the two motifs that located at the end of V gene and the start of J gene are know.
+PyDAIR is available under the terms of the GNU license.
 
- - identifying the V, D, and J genes in immunoglobulin heavy chain,
-   and T-cell receptor beta and delta chains.
- - identifying the CDR3 region in the sequences.
- - estimating the population sizes of the number of combinations of
-   VDJ, and the number of clusters of CDR3 sequence.
- - visualizing the analysed results.
 
-## Dependency Libraries
 
-PyDAIR depends on the following Python libraries.
 
- - numpy
- - matplotlib
- - pandas
- - biopython
 
-## Installation
+## INSTALLTION
 
-Before install the PyDAIR, one need to install all depending libraries.
-All dpending libraries can be installed by `pip` command.
+PyDAIR requires Python 2.7 together with [NumPy](http://www.numpy.org/),
+[Pandas](http://pandas.pydata.org/), [matplotlib](http://matplotlib.org/),
+and [BioPython](http://biopython.org/) packages.
+Further, PyDAIR requires [NCBI BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK279690/)
+for aligning IGH sequence to germline databases.
+PyDAIR is avaliable on the [PyPI](https://pypi.python.org/pypi/PyDAIR) repository,
+as well as can be installed like any other Python package using `pip` command.
+
+``` bash
+pip install numpy --user
+pip install pandas --user
+pip install matplotlib --user
+pip install biopython --user
+pip install pydair --user
+```
+
+Installtion instructions for [NCBI BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK279690/)
+are available on [NCBI website](https://www.ncbi.nlm.nih.gov/books/NBK279671/).
+User should follow the instruction to install [NCBI BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK279690/).
+
+
+
+
+
+## Usage
+
+PyDAIR has two main commands that are `pydair-parseseq` and `pydair-analysis`.
+
+| Command         | Function |
+|-----------------|----------|
+| pydair-parseseq | Identification of V, D and J genes that used by each IGH sequence. |
+| pydair-analysis | Aggregation of the frequencies of usage of V, D and J genes, as well as extraction of CDR-H3 sequences. |
+
+
+`pydair-parseseq` identifies V, D, and J genes from IGH each sequence by aligning IGH sequence to
+germline (V, D, and J) database using NCBI BLAST+.
+It requires IGH sequences, germline sequences, BLAST databases of germiline sequences,
+and BLAST parameters. The sequences should be given by FASTA format.
+
 
 ```bash
-pip install numpy
-pip install matplotlib
-pip install pandas
-pip install biopython
-``` 
+ pydair-parseseq -q input_igh_sequences.fa \
+                 -v v.fa                   \
+                 -d d.fa                   \
+                 -j j.fa                   \
+                 --v-blastdb blastdb_v     \
+                 --d-blastdb blastdb_d     \
+                 --j-blastdb blastdb_j     \
+                 -o output1
+```
 
-Then install PyDAIR library.
+PyDAIR generates several files to save the intermediate results,
+such as BLAST results, region that cannot be aligned to V and J genes.
+The final result is saved into `output1.pydair` file.
+If there several samples, `pydair-parseseq` should be run several times for each sample.
+
+The statistical summaries are calculated by `pydair-analysis` command.
 
 ```bash
-pip install PyDAIR
+pydair-analysis -i output1.pydair output2.pydair output3.pydair  \
+                -n Fugu1 Fugu2 Fugu3                             \
+                -o stats_result                                  \
+                --contain_ambiguous_D
 ```
 
 
-# Usage Examples
 
-## Command line usage
 
-```sh
-PyDAIR -q ./data/test.fa -o ./data/test_PyDAIR_cmd -f PyDAIR \
-       -v ./data/db/v.fa -d ./data/db/d.fa -j ./data/db/j.fa \
-       --v-blastdb ./data/db/v --v-match-score 3 --v-mismatch-score -3 \
-       --v-gap-open-penalty 6 --v-gap-extend-penalty 6 --v-wordsize 21 --v-evalue-cutoff 1e-60 \
-       --d-blastdb ./data/db/d --d-match-score 1 --d-mismatch-score -1 \
-       --d-gap-open-penalty 0 --d-gap-extend-penalty 2 --d-wordsize 4 --d-evalue-cutoff 1 \
-       --j-blastdb ./data/db/j --j-match-score 3 --j-mismatch-score -3 \
-       --j-gap-open-penalty 6 --j-gap-extend-penalty 6 --j-wordsize 7 --j-evalue-cutoff 1e-5
-
-```
 
