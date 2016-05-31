@@ -24,7 +24,8 @@ rm PyDAIR/utils/*.pyc
 
 
 ## PyPI registration commands
-# python setup.py egg_info
 # python setup.py sdist
-# twine register dist/*
+# python setup.py bdist_wheel --universal
+# twine upload dist/*
+
 
