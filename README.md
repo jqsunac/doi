@@ -403,10 +403,10 @@ pwd
 
 Rscript --vanilla --slave ../bin/plot_freq.R \
           'fugustats_cm.sample.Fugu1,fugustats_cm.sample.Fugu2,fugustats_cm.sample.Fugu3' \
-          'Fugu 1,Fugu 2,Fugu 3' FALSE Fig_Cm_VDJ_freq_hist.png png 800 400 100
+          'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Cm_VDJ_freq_hist.png png 800 400 100
 Rscript --vanilla --slave ../bin/plot_freq.R \
           'fugustats_ct.sample.Fugu1,fugustats_ct.sample.Fugu2,fugustats_ct.sample.Fugu3' \
-          'Fugu 1,Fugu 2,Fugu 3' FALSE Fig_Ct_VDJ_freq_hist.png png 800 400 100
+          'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Ct_VDJ_freq_hist.png png 800 400 100
 ```
 
 ---
@@ -431,11 +431,11 @@ Plot 3D figures for visualizing VDJ combinations.
 
 ```bash
 Rscript --vanilla --slave ../bin/plot_vdj_3d.R \
-            fugustats_cm.sample.Fugu1.vdj.freq.tsv Fugu1 FALSE Fig_Cm_VDJ3D_fugu1
+            fugustats_cm.sample.Fugu1.vdj.freq.tsv Fugu1 TRUE Fig_Cm_VDJ3D_fugu1
 Rscript --vanilla --slave ../bin/plot_vdj_3d.R \
-            fugustats_cm.sample.Fugu2.vdj.freq.tsv Fugu2 FALSE Fig_Cm_VDJ3D_fugu2
+            fugustats_cm.sample.Fugu2.vdj.freq.tsv Fugu2 TRUE Fig_Cm_VDJ3D_fugu2
 Rscript --vanilla --slave ../bin/plot_vdj_3d.R \
-            fugustats_cm.sample.Fugu3.vdj.freq.tsv Fugu3 FALSE Fig_Cm_VDJ3D_fugu3
+            fugustats_cm.sample.Fugu3.vdj.freq.tsv Fugu3 TRUE Fig_Cm_VDJ3D_fugu3
 ```
 
 ---
@@ -492,11 +492,11 @@ pwd
 ## ~/Desktop/fugu/work
 
 Rscript --vanilla --slave ../bin/plot_cdr3len.R \
-        'FuguStudy_dev_cm.sample.Fugu1.cdr3_prot_length.freq.tsv,FuguStudy_dev_cm.sample.Fugu2.cdr3_prot_length.freq.tsv,FuguStudy_dev_cm.sample.Fugu3.cdr3_prot_length.freq.tsv' \
-        'Fugu 1,Fugu 2,Fugu 3' FALSE Fig_Cm_CDR3Length.png png 800 300 100
+        'fugustats_cm.sample.Fugu1.cdr3_prot_length.freq.tsv,fugustats_cm.sample.Fugu2.cdr3_prot_length.freq.tsv,fugustats_cm.sample.Fugu3.cdr3_prot_length.freq.tsv' \
+        'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Cm_CDR3Length.png png 800 300 100
 Rscript --vanilla --slave ../bin/plot_cdr3len.R \
-        'FuguStudy_dev_ct.sample.Fugu1.cdr3_prot_length.freq.tsv,FuguStudy_dev_ct.sample.Fugu2.cdr3_prot_length.freq.tsv,FuguStudy_dev_ct.sample.Fugu3.cdr3_prot_length.freq.tsv' \
-        'Fugu 1,Fugu 2,Fugu 3' FALSE Fig_Ct_CDR3Length.png png 800 300 100
+        'fugustats_ct.sample.Fugu1.cdr3_prot_length.freq.tsv,fugustats_ct.sample.Fugu2.cdr3_prot_length.freq.tsv,fugustats_ct.sample.Fugu3.cdr3_prot_length.freq.tsv' \
+        'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Ct_CDR3Length.png png 800 300 100
 ```
 
 ---
