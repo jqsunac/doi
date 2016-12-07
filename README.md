@@ -308,15 +308,12 @@ Rscript --vanilla --slave ../bin/plot_indelslen.R \
 
 
 Plot 3D figures for visualizing VDJ combinations.
-
+One should start R and change the variables to plot the 3D scatter plots for thee three fugu.
 
 ```bash
-Rscript --vanilla --slave ../bin/plot_vdj_3d.R \
-            fugustats_cm.Fugu1.vdj.freq.tsv Fugu1 TRUE Fig_Cm_VDJ3D_fugu1
-Rscript --vanilla --slave ../bin/plot_vdj_3d.R \
-            fugustats_cm.Fugu2.vdj.freq.tsv Fugu2 TRUE Fig_Cm_VDJ3D_fugu2
-Rscript --vanilla --slave ../bin/plot_vdj_3d.R \
-            fugustats_cm.Fugu3.vdj.freq.tsv Fugu3 TRUE Fig_Cm_VDJ3D_fugu3
+$R
+
+>source('../bin/plot_vdj_3d.R')
 ```
 
 
