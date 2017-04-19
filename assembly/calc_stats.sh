@@ -24,7 +24,7 @@ JOB_ROOT=${PROJECT_ROOT}/assembly
 SPDIR=${JOB_ROOT}/${species}
 
 
-echo "Number of uniquely mapped reads:\n"
+echo "Number of uniquely mapped reads:"
 for i in 1 2 3 4 5 6 7 8 9 10; do
     log_file=${SPDIR}/tmp${i}/Log.final.out
     cat ${log_file} | awk 'BEGIN{FS="\t"}
@@ -35,12 +35,13 @@ done
 
 
 cd ${SPDIR}/tmp10
-echo "Number of assembled genes:\n"
+echo "Number of assembled genes:"
 python ${SCRIPTDIR}/htseq-count2.py -m divided -f bam -r pos -s reverse -t gene -i ID Aligned.out.sorted.bam ${GENOMELEAFDIR}/${species}/genome.modified.gff > mapped.counts.txt
 awk 'BEGIN{FS="\t"}{if($1 ~ /CARHR/ && $2 > 0){num_of_genes++}}END{print num_of_genes}' mapped.counts.txt
 
 
 java -jar ${BIN}/picard.jar CollectAlignmentSummaryMetrics R=genome.fa I=Aligned.out.sorted.bam O=Aligned.out.sorted.bam.summary.Xls
+java -jar ${BIN}/picard.jar QualityScoreDistribution I=Aligned.out.sorted.bam O=Aligned.out.sorted.bam.qualscores.dist.txt CHART=Aligned.out.sorted.bam.qualscores.dist.pdf 
 
 
 
