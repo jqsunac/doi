@@ -24,8 +24,7 @@ wget http://geneontology.org/ontology/go.obo
 python ${SCRIPTDIR}/create_go_annotations.py --obo go.obo \
             --goslim ATH_GO_GOSLIM.txt \
             --ann ${GENOMEDIR}/chirsuta/chi_m25.txt \
-            --go2carhr go2carhr.tsv \
-            --carhr2go carhr2go.tsv
+            --go2carhr go2carhr.tsv 
 
 
 
