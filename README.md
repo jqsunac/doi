@@ -1,19 +1,27 @@
 # PROTOCOL
 
-Date: 2016-12-02
+Updated: 2017-12-17
 
 
 ## 1 Preparation
 
 ### 1.1 Data preparation
 
+Download analysis scripts from GitHub and FASTQ from DDBJ.
+
 ```bash
 cd ~/Desktop
+pwd
+## ~/Desktop
 
-## download anlaysis scripts, database, etc.
+# download analysis scripts
 git clone git@github.com:jqsunac/fugu.git
+cd fugu
 
-## download Ig-Seq data.
+pwd
+## ~/Desktop/fugu
+
+## download Ig-Seq data (~6GB)
 wget http://path_to_DRR004021_1.fastq.bz2 -p ./data
 wget http://path_to_DRR004021_2.fastq.bz2 -p ./data
 wget http://path_to_DRR004022_1.fastq.bz2 -p ./data
@@ -21,7 +29,7 @@ wget http://path_to_DRR004022_2.fastq.bz2 -p ./data
 wget http://path_to_DRR004023_1.fastq.bz2 -p ./data
 wget http://path_to_DRR004023_2.fastq.bz2 -p ./data
 
-## Decompress Ig-Seq data to FASTQ format.
+## decompress Ig-Seq data
 bzip2 -dc ./data/DRR004021_1.fastq.bz2 > ./work/fugu1_1.fq
 bzip2 -dc ./data/DRR004021_2.fastq.bz2 > ./work/fugu1_2.fq
 bzip2 -dc ./data/DRR004022_1.fastq.bz2 > ./work/fugu2_1.fq
@@ -30,42 +38,45 @@ bzip2 -dc ./data/DRR004023_1.fastq.bz2 > ./work/fugu3_1.fq
 bzip2 -dc ./data/DRR004023_2.fastq.bz2 > ./work/fugu3_2.fq
 ```
 
+
+
 ### 1.2 Software preparation
 
-```bash
-brew install blast
-brew install fastqc
-brew install trimmomatic
-pip install cutadapt
-pip install numpy
-pip install matplotlib
-pip install pandas
-pip install biopython
-pip install pydair
-```
+
+The following software are required in data analysis.
+
 
 | Software       | Version  | Reference                                                 |
 |----------------|---------:|-----------------------------------------------------------|
 | Trimmomatic    |     0.35 | http://www.usadellab.org/cms/?page=trimmomatic            |
 | PEAR           |    0.9.6 | http://sco.h-its.org/exelixis/web/software/pear/          |
 | CD-HIT         |    4.6.6 | http://weizhongli-lab.org/cd-hit/                         |
-| cutadatp       |     1.11 | http://cutadapt.readthedocs.io/en/stable/index.html       |
-| PyDAIR         |    0.1.8 | https://github.com/bioinfoteam/PyDAIR                     |
 | NCBI BLAST+    |    2.4.0 | https://www.ncbi.nlm.nih.gov/books/NBK279671/             |
 | FastQC         |   0.11.5 | http://www.bioinformatics.babraham.ac.uk/projects/fastqc/ |
 | R              |    3.2.4 | https://cran.r-project.org/                               |
+| cutadapt       |     1.11 | http://cutadapt.readthedocs.io/en/stable/index.html       |
+| PyDAIR         |    0.1.8 | https://github.com/bioinfoteam/PyDAIR                     |
+
+
+cutadapt and PyDAIR are Python libraries which are able to be installed by `pip` command.
+
+
+
+
+
 
 
 
 ## 2 Read Classification
 
-Check the primers and split FASTQ file into (Cm, Ct) x (V1, V2, V3) groups.
+Classification of Ig-Seq reads based on the primers (i.e., (V1, V2, V3) x (Ct, Cm)).
 
 ```bash
 pwd
 ## ~/Desktop/fugu/work
 
 
+# check primers with cutadapt
 for (( i = 1; i < 4; ++i ))
 do
     # from *_1 (forward) to *_2 (reversed) of FASTQ files
@@ -83,6 +94,7 @@ do
 done
 
 
+# classify reads based on primer information given by cutadapt
 for (( i = 1; i < 4; ++i ))
 do
     python ../bin/read_classify.py --fq1 fugu${i}_1.fq --fq2 fugu${i}_2.fq \
@@ -92,11 +104,19 @@ done
 ```
 
 
+
+
+
 ## 3. Quality Control
 
+Quality control for Ig-Seq reads: bases with low qualities are trimmed
+and reads with short length are removed by Trimmomatic.
 
 
 ```bash
+pwd
+## ~/Desktop/fugu/work
+
 cgene=("cm" "ct")
 vgene=("v1" "v2" "v3")
 
@@ -122,15 +142,16 @@ done
 
 
 
-## 4 Merge Paired-end Reads
 
-Merge the paired-end reads into a consensus read using 
-[PEAR](http://sco.h-its.org/exelixis/web/software/pear/doc.html).
+## 4 Merging of Paired-end Reads
+
+The paired-end reads are merged by PEAR in this step.
 
 
 ```bash
 pwd
 ## ~/Desktop/fugu/work
+
 cp ../bin/pear-0.9.6-bin-64/pear-0.9.6-bin-64 ../bin/pear
 
 cgene=("cm" "ct")
@@ -149,9 +170,22 @@ do
         done
     done
 done
+```
 
 
-## change merged FASTQ file to FASTA file.
+
+
+
+## 5 VDJ and CDR3 identification
+
+
+The merged reads in FASTQ files are converted to FASTA files with `awk` command.
+
+```bash
+pwd
+## ~/Desktop/fugu/work
+
+## change FASTQ file to FASTA file.
 for (( i = 1; i < 4; ++i ))
 do
     awk 'NR % 4 == 1 || NR % 4 == 2' fugu${i}.v1.cm.pear.fq.assembled.fastq | sed 's/^@/>/' > fugu${i}.v1.cm.fa
@@ -163,14 +197,7 @@ do
 done
 ```
 
-
-
-## 5 Ig-Seq Data Analysis
-
-
-Identification of V, D, and J genes using [PyDAIR](https://pypi.python.org/pypi/PyDAIR).
-BLAST with the following parameters is used to align IGH sequence to V, D, J gene databases
-for identification of V, D and J genes in IGH sequence.
+VDJ and CDR3 are identified for each read in FASTA files with PyDAIR.
 
 
 ```bash
@@ -181,7 +208,6 @@ cgene=("m" "t")         # cm, ct
 vgene=("1" "2" "3")     # v1, v2, v3
 
 # Identify V, D, and J genes
-
 for (( i = 1; i < 4; ++i ))
 do
     for (( c = 0; c < ${#cgene[@]}; ++c ))
@@ -200,7 +226,7 @@ do
     done
 done
 
-cgene=("m" "t")         # cm, ct
+# merge the results of V1, V2, and V3 groups into one file for each fugu
 for (( i = 1; i < 4; ++i ))
 do
     for (( c = 0; c < ${#cgene[@]}; ++c ))
@@ -210,13 +236,7 @@ do
         cat fugu${i}.v3.c${cgene[${c}]}.vdj.pydair >> fugu${i}.c${cgene[${c}]}.pydair
     done
 done
-```
 
-Summarizes the anlaysis results.
-
-
-```bash
-cgene=("m" "t")
 for ((c = 0; c < ${#cgene[@]}; ++c))
 do
     pydair stats -i fugu1.c${cgene[${c}]}.pydair fugu2.c${cgene[${c}]}.pydair fugu3.c${cgene[${c}]}.pydair \
@@ -226,9 +246,111 @@ do
 done
 ```
 
+
+## 6 Statistical Analysis
+
+
+### 6.1 Diversity study for VDJ combinations
+
+
+Perform the sampling-resampling analysis to generate an rarefaction curve of the number of VDJ combinations.
+
+
+```bash
+pwd
+## ~/Desktop/fugu/work
+
+Rscript --vanilla --slave ../bin/plot_rarefaction_vdjcombi.R \
+          'fugustats_cm.Fugu1.vdj.freq.tsv,fugustats_cm.Fugu2.vdj.freq.tsv,fugustats_cm.Fugu3.vdj.freq.tsv' \
+          'Fugu 1,Fugu 2,Fugu 3' Fig_Cm_VDJ_rarefaction.pdf pdf 10 6 100
+```
+
+
+Generate bar charts to visualize the frequences of VDJ usages.
+
+
+```bash
+pwd
+## ~/Desktop/fugu/work
+
+Rscript --vanilla --slave ../bin/plot_freq.R \
+          'fugustats_cm.Fugu1,fugustats_cm.Fugu2,fugustats_cm.Fugu3' \
+          'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Cm_VDJ_freq_hist.pdf pdf 14 4 300
+Rscript --vanilla --slave ../bin/plot_freq.R \
+          'fugustats_ct.Fugu1,fugustats_ct.Fugu2,fugustats_ct.Fugu3' \
+          'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Ct_VDJ_freq_hist.pdf pdf 10 4 100
+```
+
+
+Generate 3D scatter plot to visualize the frequences of VDJ combinations.
+To generate 3D scatter plot, unlike the previous two figures,
+it is required to start R,
+and run `plot.vdj.3d` function three times for the three fugus, respectively.
+
+
+```bash
+pwd
+## ~/Desktop/fugu/work
+
+# start R
+$R
+
+# then run the following script on R console
+> source('../bin/plot_vdj_3d.R')   # load plot.vdj.3d function
+> plot.vdj.3d(1)                   # plot fugu 1
+> plot.vdj.3d(2)                   # plot fugu 2
+> plot.vdj.3d(3)                   # plot fugu 3
+> q()                              # finish R
+```
+
+
+Plot histograms to visualize the distribution of the length of deletion at
+3'-end of V gene and 5'-end of J gene.
+
+
+```bash
+pwd
+## ~/Desktop/fugu/work
+
+Rscript --vanilla --slave ../bin/plot_indelslen.R \
+          fugustats_ct.all.v_del_len.freq.tsv TRUE Fig_Ct_Vdel.pdf pdf 5 4 10
+Rscript --vanilla --slave ../bin/plot_indelslen.R \
+          fugustats_cm.all.v_del_len.freq.tsv TRUE Fig_Cm_Vdel.pdf pdf 5 4 10
+```
+
+
+Plot histograms to visualize the distribution of the length of insertion
+between VJ junction (including D segment).
+
+
+```bash
+pwd
+## ~/Desktop/fugu/work
+
+Rscript --vanilla --slave ../bin/plot_indelslen.R \
+          fugustats_ct.all.j_del_len.freq.tsv TRUE Fig_Ct_Jdel.pdf pdf 8 4 20
+Rscript --vanilla --slave ../bin/plot_indelslen.R \
+          fugustats_cm.all.j_del_len.freq.tsv TRUE Fig_Cm_Jdel.pdf pdf 8 4 20
+
+Rscript --vanilla --slave ../bin/plot_indelslen.R \
+          fugustats_ct.all.vj_ins_len.freq.tsv TRUE Fig_Ct_VJins.pdf pdf 14 4 40
+Rscript --vanilla --slave ../bin/plot_indelslen.R \
+          fugustats_cm.all.vj_ins_len.freq.tsv TRUE Fig_Cm_VJins.pdf pdf 14 4 40
+```
+
+
+
+
+
+### 6.1 Diversity study for CDR3 segments
+
+
 Check the number of sequences and CDR3 that contains stop codons.
 
 ```
+pwd
+## ~/Desktop/fugu/work
+
 cgene=("m" "t")
 for (( i = 1; i < 4; ++i ))
 do
@@ -242,7 +364,10 @@ done
 Create CDR3 sequence FASTA files.
 
 ```bash
-cgene=("m" "t")         # cm, ct
+pwd
+## ~/Desktop/fugu/work
+
+cgene=("m" "t")
 for (( i = 1; i < 4; ++i ))
 do
     for (( c = 0; c < ${#cgene[@]}; ++c ))
@@ -252,52 +377,11 @@ do
 done
 ```
 
-Perform rarefaction study for VDJ combinations for Cm group.
+Plot distributions of CDR3 AA sequences.
 
-```
+```bash
 pwd
 ## ~/Desktop/fugu/work
-
-Rscript --vanilla --slave ../bin/plot_rarefaction_vdjcombi.R \
-          'fugustats_cm.Fugu1.vdj.freq.tsv,fugustats_cm.Fugu2.vdj.freq.tsv,fugustats_cm.Fugu3.vdj.freq.tsv' \
-          'Fugu 1,Fugu 2,Fugu 3' Fig_Cm_VDJ_rarefaction.pdf pdf 10 6 100
-```
-
-
-
-
-## 6 Figures
-
-
-Plot the frequencies of V, D, and J gene usages,
-and the distribution of 3'V deletion, 5'J deletion, and 3'V5'J insertions.
-
-
-```
-pwd
-## ~/Desktop/fugu/work
-
-Rscript --vanilla --slave ../bin/plot_freq.R \
-          'fugustats_cm.Fugu1,fugustats_cm.Fugu2,fugustats_cm.Fugu3' \
-          'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Cm_VDJ_freq_hist.pdf pdf 14 4 300
-Rscript --vanilla --slave ../bin/plot_freq.R \
-          'fugustats_ct.Fugu1,fugustats_ct.Fugu2,fugustats_ct.Fugu3' \
-          'Fugu 1,Fugu 2,Fugu 3' TRUE Fig_Ct_VDJ_freq_hist.pdf pdf 10 4 100
-
-Rscript --vanilla --slave ../bin/plot_indelslen.R \
-          fugustats_ct.all.v_del_len.freq.tsv TRUE Fig_Ct_Vdel.pdf pdf 5 4 10
-Rscript --vanilla --slave ../bin/plot_indelslen.R \
-          fugustats_cm.all.v_del_len.freq.tsv TRUE Fig_Cm_Vdel.pdf pdf 5 4 10
-
-Rscript --vanilla --slave ../bin/plot_indelslen.R \
-          fugustats_ct.all.j_del_len.freq.tsv TRUE Fig_Ct_Jdel.pdf pdf 8 4 20
-Rscript --vanilla --slave ../bin/plot_indelslen.R \
-          fugustats_cm.all.j_del_len.freq.tsv TRUE Fig_Cm_Jdel.pdf pdf 8 4 20
-
-Rscript --vanilla --slave ../bin/plot_indelslen.R \
-          fugustats_ct.all.vj_ins_len.freq.tsv TRUE Fig_Ct_VJins.pdf pdf 14 4 40
-Rscript --vanilla --slave ../bin/plot_indelslen.R \
-          fugustats_cm.all.vj_ins_len.freq.tsv TRUE Fig_Cm_VJins.pdf pdf 14 4 40
 
 Rscript --vanilla --slave ../bin/plot_indelslen.R \
           fugustats_ct.all.cdr3_prot_len.freq.tsv TRUE Fig_Ct_CDR3aa.pdf pdf 8 4 20
@@ -306,25 +390,7 @@ Rscript --vanilla --slave ../bin/plot_indelslen.R \
 
 ```
 
-
-Plot 3D figures for visualizing VDJ combinations.
-One should start R and change the variables to plot the 3D scatter plots for thee three fugu.
-
-```bash
-$R
-
->source('../bin/plot_vdj_3d.R')
-```
-
-
-
-
-
-
-## 7 CDR3 diversity study
-
-CDR3 amino acid sequences of the three fugu are merged into one file for estimating CDR3 repertoire population sizes.
-Then, CDR3 amino acid sequences were clustered by [CD-HIT](http://weizhongli-lab.org/cd-hit/). Output files from CD-HIT were adjusted by Python script, and estimation was performed by R script.
+We clustered CDR3 AA with CD-HIT and then use ACE to estimate the population sizes of CDR3 AA clusters for each fugu, and the pooled data.
 
 
 ```bash
@@ -376,11 +442,25 @@ python ../bin/make_cdr3_clusters_tsv.py -f fuguall.cm.cdr3aa.fa          \
 python ../bin/make_cdr3_clusters_tsv.py -f fuguall.ct.cdr3aa.fa          \
                                         -c cdhit_fuguall.ct.cls.fa.clstr \
                                         -o fuguall.ct.cdr3.venn.tsv                                        
+
+
+## create dataset for diversity study
+../bin/make_cluster_abudance.py \
+            -c cdhit_fuguall.cm.cls.fa.clstr \
+            -p fugu1.cm.pydair,fugu2.cm.pydair,fugu3.cm.pydair \
+            -o classabudance.cm.txt
+../bin/make_cluster_abudance.py \
+            -c cdhit_fuguall.ct.cls.fa.clstr \
+            -p fugu1.ct.pydair,fugu2.ct.pydair,fugu3.ct.pydair \
+            -o classabudance.ct.txt
+
+
+../bin/make_cluster_abundance_seq.py -i classabudance.ct.txt -o classabudance.ct.2.txt
+../bin/make_cluster_abundance_seq.py -i classabudance.cm.txt -o classabudance.cm.2.txt
+
+
+# Checnge the values of the vairables in R script and execute it.
+#$R
+#> source('../bin/make_cluster_abudance.R')
 ```
-
-
-
-
-
-
 
