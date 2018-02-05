@@ -13,7 +13,6 @@ message("Start to run common.initobj.R.")
 if (! file.exists(.f.id)) stop("Error: Use akw to create basis file!")
 #if (! file.exists(.f.go)) stop("Error: Run get_GO.py!")
 
-library(KEGG.db)
 library(org.At.tair.db)
 ls("package:org.At.tair.db")
 
@@ -49,54 +48,6 @@ names(TAIR2CARHR) <- tairid
 for (i in 1:length(TAIR2CARHR)) {
   TAIR2CARHR[[i]] <- as.character(carhrf[carhrf[, 2] == tairid[i], 1])
 }
-
-
-CREATED_DATE <- date()
-SESS_INFO <- sessionInfo()
-
-save(CARHR2TAIR, TAIR2CARHR, CARHR2NAME, CARHR2DESC, CREATED_DATE, SESS_INFO,
-     file = .common.RData)
-# till here
-
-
-
-#--------------------------------------------------------------
-# KEGG hash table
-#--------------------------------------------------------------
-
-# KEGG2TAIR and TAIR2KEGG
-#--------------------------------------------------------------
-message("Creating TAIR2KEGG ...")
-KEGG2TAIR <- as.list(org.At.tairARACYC)
-
-message("Creating KEGG2TAIR ...")
-.kegg_names <- names(KEGG2TAIR)
-.tair_names <- unique(as.character(unlist(KEGG2TAIR)))
-TAIR2KEGG <- vector("list", length(.tair_names))
-names(TAIR2KEGG) <- .tair_names
-for (i in 1:length(KEGG2TAIR)) {
-    TAIR2KEGG[KEGG2TAIR[[i]]] <- lapply(TAIR2KEGG[KEGG2TAIR[[i]]], function(x) {c(x, .kegg_names[i])})
-}
-
-# CARHR2KEGG and KEGG2CARHR
-#--------------------------------------------------------------
-message("Creating CARHR2KEGG ...")
-tairid <- unique(names(TAIR2KEGG))
-carhrid <- as.character(unlist(TAIR2CARHR[tairid]))
-CARHR2KEGG <- vector("list", length(carhrid))
-names(CARHR2KEGG) <- carhrid
-for (i in 1:length(CARHR2KEGG)) {
-  CARHR2KEGG[[i]] <- as.character(TAIR2KEGG[[as.character(CARHR2TAIR[carhrid[i]])]])
-}
-
-message("Creating KEGG2CARHR ...")
-kgid <- names(KEGG2TAIR)
-KEGG2CARHR <- vector("list", length(kgid))
-names(KEGG2CARHR) <- kgid
-for (i in 1:length(kgid)) {
-  KEGG2CARHR[[i]] <- as.character(unlist(TAIR2CARHR[KEGG2TAIR[[kgid[i]]]]))
-}
-
 
 
 #--------------------------------------------------------------
@@ -143,25 +94,16 @@ for (i in 1:length(kgid)) {
 
 
 
-#--------------------------------------------------------------
-# KEGG
-#--------------------------------------------------------------
-KEGGNAME2ID <- as.list(KEGGPATHNAME2ID)
-KEGGID2NAME <- as.list(KEGGPATHID2NAME)
+CREATED_DATE <- date()
+SESS_INFO <- sessionInfo()
 
-
-
-
+save(CARHR2TAIR, TAIR2CARHR, CARHR2NAME, CARHR2DESC, CREATED_DATE, SESS_INFO,
+     TAIR2GO, CARHR2GO, GO2CARHR, GO2TAIR,
+     file = .common.RData)
 
 
 
 message(paste0("Saving all hash table in to ", .common.RData))
-
-
-TAIR2NAME, TAIR2DESC,
-     TAIR2KEGG, KEGG2TAIR, CARHR2KEGG, KEGG2CARHR, KEGGNAME2ID, KEGGID2NAME,
-     TAIR2GO, GO2TAIR, CARHR2GO, GO2CARHR, CREATED_DATE, SESS_INFO,
-     file = .common.RData)
 
 
 

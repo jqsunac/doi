@@ -26,8 +26,6 @@ python ${SCRIPTDIR}/create_go_annotations.py --obo go.obo \
             --ann ${GENOMEDIR}/chirsuta/chi_m25.txt \
             --go2carhr go2carhr.tsv 
 
-
-
 date '+%Y-%m-%d'
 ## 2017-04-19
 

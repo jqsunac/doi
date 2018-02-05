@@ -1,38 +1,37 @@
-##
-##
-##
+## R code for homeolog expression analysis
 
 set.seed(2016)
 suppressMessages(require(MASS))
-suppressMessages(require(RUnit))
-suppressMessages(require(knitr))
+#suppressMessages(require(RUnit))
+#suppressMessages(require(knitr))
 suppressMessages(require(XLConnect))
 suppressMessages(require(RColorBrewer))
 suppressMessages(require(reshape2))
 suppressMessages(require(ggplot2))
+suppressMessages(require(ggsci))
 suppressMessages(require(ggExtra))
 suppressMessages(require(gplots))
-suppressMessages(require(VennDiagram))
-suppressMessages(require(grid))
-suppressMessages(require(scales))
-suppressMessages(require(outliers))
-suppressMessages(require(fBasics))
-suppressMessages(require(edgeR))
-suppressMessages(require(TCC))
+#suppressMessages(require(VennDiagram))
+#suppressMessages(require(grid))
+#suppressMessages(require(scales))
+#suppressMessages(require(outliers))
+#suppressMessages(require(fBasics))
+#suppressMessages(require(edgeR))
+#suppressMessages(require(TCC))
 suppressMessages(require(GO.db))
 suppressMessages(require(org.At.tair.db))
 suppressMessages(require(clusterProfiler))
-suppressMessages(require(plyr))
-suppressMessages(require(genefilter))
-suppressMessages(require(googleVis))
-suppressMessages(require(venneuler))
-options(stringsAsFactors = FALSE)
+#suppressMessages(require(plyr))
+#suppressMessages(require(genefilter))
+#suppressMessages(require(googleVis))
+#suppressMessages(require(venneuler))
 
+
+options(stringsAsFactors = FALSE)
 
 
 ## GLOBAL PARAMTERS
 FPKM_CUTOFF <- 1.0
-
 
 
 ## INIT DIRECTORIES
@@ -72,9 +71,6 @@ COLS <- list(
     ins  = .brewer.set1[3],     # C. insueta
     insA = .brewer.set1[4],     # C. insueta (A)
     insR = .brewer.set1[5],     # C. insueta (R)
-    flx  = .brewer.set1[3],     # C. flexuosa
-    flxA = .brewer.set1[4],     # C. flexuosa (A)
-    flxH = .brewer.set1[5],     # C. flexuosa (H)
     DE   = .brewer.set1[5],     # Differentially expressed genes
     NDE  = .brewer.set1[9]      # Non-differentially expressed genes
 )
@@ -84,54 +80,72 @@ COLSFUNC <- function(n = 100) {
     .colfunc <- colorRampPalette(rev(brewer.pal(9,"RdBu")))
     .colfunc(n)
 }
-COLSFUNC2 <- function(n = 100) {
-    .colfunc <- colorRampPalette(c("#053061", "#4393C3", "#FFFFFF", "#D6604D", "#67001F"))
+COLSFUNCSP <- function(n = 100) {
+    #.colfunc <- colorRampPalette(c("#FFFFFF", "#D6604D", "#67000D"))
+    .colfunc <- colorRampPalette(rev(brewer.pal(11,"Spectral")))
     .colfunc(n)
 }
-COLSFUNCC1 <- function(n = 100) {
-    .colfunc <- colorRampPalette(rev(brewer.pal(9,"RdBu")))
+COLSFUNC2 <- function(n = 100) {
+    .colfunc <- colorRampPalette(c("#053061", "#4393C3", "#FFFFFF", "#D6604D", "#67001F"))
     .colfunc(n)
 }
 COLSFUNCC2 <- function(n = 100) {
     .colfunc <- colorRampPalette(rev(brewer.pal(9,"RdBu"))[5:9])
     .colfunc(n)
 }
-COLSFUNC23 <- function(n = 100) {
-    .colfunc <- colorRampPalette(c("#053061", "#FFFFFF", "#D6604D", "#67001F"))
-    .colfunc(n)
-}
-
 
 
 
 SPLABELS  <- c("AA", "IA", "IR", "RR")
 SPLABELS2 <- c("AA", "IA", "II", "IR", "RR")
-
 TIMELABELS  <- c("0 hr", "2 hr", "4 hr", "8 hr", "12 hr", "24 hr", "48 hr", "72 hr", "96 hr")
 TIMELABELS2 <-  c("0 hr vs. 2 hr",   "0 hr vs. 4 hr",  "0 hr vs. 8 hr", "0 hr vs. 12 hr",
                   "0 hr vs. 24 hr", "0 hr vs. 48 hr", "0 hr vs. 72 hr", "0 hr vs. 96 hr")
 INCH2CM <- 1 / 2.54
 
 
-HASH6 <- list(`pat` = "CaA", `mat` = "CrR", `hyb` = "CiI", `hybP` = "CiA", `hybM` = "CiR")
-HASH7 <- list(`ama` = "CaA", `riv` = "CrR", `ins` = "CiI", `insA` = "CiA", `insR` = "CiR")
-HASH2 <- list(`1000` = "CaA",   `0100` = "CiA",   `0010` = "CiR",    `0001` = "CrR",
-              `1101` = "CaA:CiA:CrR", `1011` = "CaA:CiR:CrR",
-              `1110` = "CaA:CiA:CiR", `0111` = "CiA:CiR:CrR",
-              `1111` = "CaA:CiA:CiR:CrR", `1001` = "CaA:CrR",
-              `1100` = "CaA:CiA",  `1010` = "CaA:CiR",
-              `0101` = "CiA:CrR",  `0011` = "CiR:CrR", `0110` = "CiA:CiR")
-HASH4 <- list(`CaA` = "1000",  `CiA` =  "0100",  `CiR` = "0010",  `CrR` = "0001",
-              `CaA:CiA:CrR` = "1101", `CaA:CiR:CrR` = "1011",
-              `CaA:CiA:CiR` = "1110", `CiA:CiR:CrR` = "0111",
-              `CaA:CiA:CiR:CrR` = "1111", `CaA:CrR` = "1001",
-              `CaA:CiA` = "1100", `CaA:CiR` = "1010",
-              `CiA:CrR` = "0101", `CiR:CrR` = "0011", `CiA:CiR` = "0110")
+
+
+
+#' Split string of TAIR ID and convert them to CARHR ID.
+#'
+#'
+TAIRSTR2CARHRVEC <- function(x, sep = '/') {
+    paste0(unlist(TAIR2CARHR[unlist(strsplit(x, '/'))]), collapse = sep)
+}
+
+
+
+#' Plot multiple ggplot objects in a figure
+#'
+#'
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  plots <- c(list(...), plotlist)
+  numPlots = length(plots)
+  if (is.null(layout)) {
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+ if (numPlots==1) {
+    print(plots[[1]])
+  } else {
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    for (i in 1:numPlots) {
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
 
 
 
 
-
+#' Save list object into Excel file.
+#'
+#'
 SaveExcel <- function(data.list, file.name = NULL) {
     dat <- list()
     nam <- NULL
@@ -150,10 +164,12 @@ SaveExcel <- function(data.list, file.name = NULL) {
     if (is.null(file.name)) stop("Need file name.")
     if (is.null(names(dat))) stop("Need list names.")
     if (file.exists(file.name)) file.remove(file.name)
+    gc()
     workbook <- loadWorkbook(file.name, create = TRUE)
     createSheet(workbook, names(dat))
     writeWorksheet(workbook, dat, names(dat), header = TRUE)
     saveWorkbook(workbook)
+    gc()
 }
 
 
@@ -198,7 +214,6 @@ GetCounts <- function(ca, design) {
         .c <- read.table(paste0(PATH$dat, "/counts/", libname,
                                 "__on__camara.filtered.rc_common.sorted.txt"),
                          sep = "\t", fill = TRUE)
-        
         gene.names <- .a[, 1]
         counts.aorigin[[libname]] <- .a[, 2]
         counts.rorigin[[libname]] <- .r[, 2]
@@ -208,12 +223,18 @@ GetCounts <- function(ca, design) {
     counts.aorigin <- as.data.frame(counts.aorigin)[-c(grep("^__", gene.names)), ]
     counts.rorigin <- as.data.frame(counts.rorigin)[-c(grep("^__", gene.names)), ]
     counts.common  <- as.data.frame(counts.common)[-c(grep("^__", gene.names)), ]
+    
+    print(data.frame(A      = colSums(counts.aorigin),
+                     common = colSums(counts.common),
+                     R      = colSums(counts.rorigin)))
+    
     gene.names  <- gene.names[-c(grep("^__", gene.names))]
     
     counts.AA <- counts.aorigin[, 1:9] + counts.rorigin[, 1:9] + counts.common[, 1:9]
     counts.RR <- counts.aorigin[, 19:27] + counts.rorigin[, 19:27] + counts.common[, 19:27]
     
     aorigin.ratio <- (counts.aorigin / (counts.aorigin + counts.rorigin))[, 10:18]
+    aorigin.ratio[(counts.aorigin[, 10:18] + counts.rorigin[, 10:18]) == 0 & counts.common[, 10:18] != 0] <- 1/3
     counts.IA <- counts.aorigin[, 10:18] + counts.common[, 10:18] * aorigin.ratio
     counts.IR <- counts.rorigin[, 10:18] + counts.common[, 10:18] * (1 - aorigin.ratio)
     counts.IA[is.na(counts.IA)] <- 0
@@ -257,14 +278,17 @@ CalcFPKM <- function(ca) {
     fpkm$RR <- sweep(cpm.R, 1, 1e3 / gene.length[, 1], "*")
     
     ## IA, IR
+    print("IA counts ---> IA FPKM")
+    print("IR counts ---> IR FPKM")
+    print("IA counts + IR counts---> II FPKM")
+    cpm.IA <- sweep(ca$counts$IA, 2, 1e6 / colSums(ca$counts$IA), "*")
+    fpkm$IA <- sweep(cpm.IA, 1, 1e3 / gene.length[, 1], "*")
+    cpm.IR <- sweep(ca$counts$IR, 2, 1e6 / colSums(ca$counts$IR), "*")
+    fpkm$IR <- sweep(cpm.IR, 1, 1e3 / gene.length[, 1], "*")
     .counts.I <- ca$counts$IA + ca$counts$IR
-    cpm.I <- sweep(.counts.I, 2, 1e6 / colSums(.counts.I), "*")
-    .fpkm.I <- sweep(cpm.I, 1, 1e3 / gene.length[, 1], "*")
-    fpkm$IA <- .fpkm.I * ca$aorigin.ratio
-    fpkm$IR <- .fpkm.I * (1 - ca$aorigin.ratio)
-    fpkm$IA[is.na(fpkm$IA)] <- 0
-    fpkm$IR[is.na(fpkm$IR)] <- 0
-    
+    cpm.II <- sweep(.counts.I, 2, 1e6 / colSums(.counts.I), "*")
+    fpkm$II <- sweep(cpm.II, 1, 1e3 / gene.length[, 1], "*")
+   
     ca$gene.length <- gene.length
     ca$fpkm <- fpkm
     ca
@@ -272,375 +296,253 @@ CalcFPKM <- function(ca) {
 
 
 
-RunEdgeRPairewise <- function(c1, c2, f1, f2) {
-    keep <- (f1 > FPKM_CUTOFF | f2 > FPKM_CUTOFF)
-    cnt <- as.matrix(round(cbind(c1, c2)))[keep, ]
-    cnt  <- cnt[(rowSums(cnt) > 0), ]
-    t <- new("TCC", cnt, group = c("A", "B"))
-    t <- calcNormFactors(t)
-    d <- DGEList(counts = cnt, group = c("A", "B"), norm.factors = t$norm.factors)
-    d <- estimateGLMCommonDisp(d, method = "deviance", robust = T, subset = NULL)
-    res <- exactTest(d)
-    res.df <- as.data.frame(topTags(res, n = nrow(cnt)))
-    res.df <- data.frame(gene = as.character(rownames(res.df)), res.df[, c(1, 2, 3, 4)])
-    colnames(res.df) <- c("ID", "logFC", "logCPM", "p.value", "q.value")
-    res.df
+
+
+DoGO2 <- function(sig.genes = NULL, all.genes = NULL, ontology = "BP",
+                  p.cutoff = 1, q.cutoff = 1) {
+    all.genes <- as.character(all.genes)
+    sig.genes <- as.character(sig.genes)
+    all.genes.at <- as.character(unlist(CARHR2TAIR[all.genes]))
+    sig.genes.at <- as.character(unlist(CARHR2TAIR[sig.genes]))
+    all.genes.at <- all.genes.at[all.genes.at != ""]
+    sig.genes.at <- sig.genes.at[sig.genes.at != ""]
+    ego <- enrichGO(gene = sig.genes.at, universe = all.genes.at, OrgDb = org.At.tair.db,
+                    ont = ontology, pAdjustMethod = "BH", keyType = "TAIR",
+                    pvalueCutoff = p.cutoff, qvalueCutoff = q.cutoff, readable = FALSE)
+    egos <- dropGO(ego, level = 1)
+    egos <- dropGO(egos, level = 2)
+    egos <- dropGO(egos, level = 3)
+    egostable <- as.data.frame(egos)
+    numgenes <- sapply(strsplit(egostable$BgRatio, "/"), function(x) as.integer(x[1]))
+    egostable <- egostable[(10 < numgenes) & (numgenes < 500), ]
+    egostable <- egostable[, colnames(egostable) != "p.adjust"]
+    egostable$qvalue <- p.adjust(egostable$pvalue, method = "BH")
+    
+    .carhr <- rep("", length = nrow(egostable))
+    for (.i in 1:nrow(egostable)) {
+        .carhr[.i] <- TAIRSTR2CARHRVEC(egostable$geneID[.i])
+    }
+    egostable <- data.frame(egostable, carID = .carhr)
+    
+    list(GO = ego, GOTABLE = as.data.frame(ego), GOSMPLTABLE = egostable)
 }
 
 
 
-IdentifyDEGs <- function(ca, p.cutoff = NULL, q.cutoff = NULL) {
-    if (is.null(p.cutoff) && is.null(q.cutoff)) stop("One of 'p.cutoff' and 'q.cutoff' should be given.")
-    countslist <- ca$counts
-    fpkmlist   <- ca$fpkm
-    fpkmlist$IA <- fpkmlist$IR <- ca$fpkm$IA + ca$fpkm$IR
+
+
+
+
+
+
+LargeFPKM_GO <- function(ca) {
+    A <- ca$fpkm$AA
+    R <- ca$fpkm$RR
+    I <- ca$fpkm$IA + ca$fpkm$IR
+    A <- A[rowSums(A > FPKM_CUTOFF) > 0, ]
+    R <- R[rowSums(R > FPKM_CUTOFF) > 0, ]
+    I <- I[rowSums(I > FPKM_CUTOFF) > 0, ]
+    A <- log10(A+1)
+    R <- log10(R+1)
+    I <- log10(I+1)
+    sd.A <- apply(A, 1, sd, na.rm = T)
+    sd.R <- apply(R, 1, sd, na.rm = T)
+    sd.I <- apply(I, 1, sd, na.rm = T)
+    mu.A <- apply(A, 1, mean, na.rm = T)
+    mu.R <- apply(R, 1, mean, na.rm = T)
+    mu.I <- apply(I, 1, mean, na.rm = T)
+    cv.A <- sd.A / mu.A
+    cv.R <- sd.R / mu.R
+    cv.I <- sd.I / mu.I
     
-    tmpl.list <- vector("list", length(ca$counts))
-    names(tmpl.list) <- names(ca$counts)
-
-    ca$DEG$LIST <- ca$DEG$UP <- ca$DEG$FL <- ca$DEG$DW <- tmpl.list
-    ca$DEG$SUM <- ca$DEG$SUMP <- matrix(0, nrow = 2 * length(ca$DEG$LIST), ncol = ncol(ca$counts[[1]]) - 1)
-    colnames(ca$DEG$SUM) <- colnames(ca$DEG$SUMP) <- TIMELABELS[-1]
-    rownames(ca$DEG$SUM) <- rownames(ca$DEG$SUMP) <- paste(rep(names(ca$DEG$LIST), each = 2), c("up","dw"), sep = ".")
+    # camara
+    kamara <- cv.A > 0.20 & mu.A > 1
+    goobj <- DoGO(sig.genes = names(kamara[kamara]), all.genes = ca$EXP$genes$ALL, p.cutoff = 1, q.cutoff = 1)
+    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
+    .target.terms <- intersect(goobj$TABLE$ID, target.terms)
+    gotablesimple <- goobj$TABLE[.target.terms,]
+    gotablesimple$qvalue <- p.adjust(gotablesimple$pvalue, method = "BH")
+    gotableama<- gotablesimple[, -6]
+    .carhr <- rep("", length=nrow(gotableama))
+    for (.i in 1:nrow(gotableama)) {
+        .carhr[.i] <- TAIRSTR2CARHRVEC(gotableama$geneID[.i])
+    }
+    SaveExcel(list(full=goobj$TABLE, simlify=cbind(gotableama, .carhr)),
+              file.name = paste0(path.expbias, "/GO_camara_CV0.20_and_mu1.0.xlsx"))
+    gc()
+    # crivularis
+    krivularis <- cv.R > 0.20 & mu.R > 1
+    goobj <- DoGO(sig.genes = names(krivularis[krivularis]), all.genes = ca$EXP$genes$ALL, p.cutoff = 1, q.cutoff = 1)
+    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
+    .target.terms <- intersect(goobj$TABLE$ID, target.terms)
+    gotablesimple <- goobj$TABLE[.target.terms,]
+    gotablesimple$qvalue <- p.adjust(gotablesimple$pvalue, method = "BH")
+    gotableriv <- gotablesimple[, -6]
+    .carhr <- rep("", length=nrow(gotableriv))
+    for (.i in 1:nrow(gotableriv)) {
+        .carhr[.i] <- TAIRSTR2CARHRVEC(gotableriv$geneID[.i])
+    }
+    SaveExcel(list(full=goobj$TABLE, simlify=cbind(gotableriv, .carhr)),
+              file.name = paste0(path.expbias, "/GO_rivularis_CV0.20_and_mu1.0.xlsx"))
+    gc()
+    # cinsueta
+    kinsueta <- cv.I > 0.20 & mu.I > 1
+    goobj <- DoGO(sig.genes = names(kinsueta[kinsueta]), all.genes = ca$EXP$genes$ALL, p.cutoff = 1, q.cutoff = 1)
+    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
+    .target.terms <- intersect(goobj$TABLE$ID, target.terms)
+    gotablesimple <- goobj$TABLE[.target.terms,]
+    gotablesimple$qvalue <- p.adjust(gotablesimple$pvalue, method = "BH")
+    gotableins <- gotablesimple[, -6]
+    .carhr <- rep("", length=nrow(gotableins))
+    for (.i in 1:nrow(gotableins)) {
+        .carhr[.i] <- TAIRSTR2CARHRVEC(gotableins$geneID[.i])
+    }
+    SaveExcel(list(full=goobj$TABLE, simlify=cbind(gotableins,.carhr)),
+              file.name = paste0(path.expbias, "/GO_cinuseta_CV0.20_and_mu1.0.xlsx"))
+    gc()
     
-    ma.coordinates <- vector("list", length(ca$DEG$LIST))
-    names(ma.coordinates) <- names(ca$DEG$LIST)
-
-    for (i in 1:length(ca$DEG$LIST)) {
-        ma.coordinates[[i]] <- ca$DEG$LIST[[i]] <-
-            ca$DEG$UP[[i]] <- ca$DEG$FL[[i]] <- ca$DEG$DW[[i]] <-
-            vector("list", ncol(countslist[[i]]) - 1)
-        names(ma.coordinates[[i]]) <- names(ca$DEG$LIST[[i]]) <-
-            names(ca$DEG$UP[[i]]) <- names(ca$DEG$FL[[i]]) <- names(ca$DEG$DW[[i]]) <-
-            colnames(ca$DEG$SUM)
-        for (j in 1:(ncol(ca$counts[[i]]) - 1)) {
-            message("[IdentifyDEGs] Identying DEGs between libraries of ",
-                    colnames(countslist[[i]])[1], " and ", colnames(countslist[[i]])[j + 1], ".")
-
-            ca$DEG$LIST[[i]][[j]] <- RunEdgeRPairewise(countslist[[i]][, 1], countslist[[i]][, j + 1],
-                                                       fpkmlist[[i]][, 1],   fpkmlist[[i]][, j + 1])
-            if (!is.null(p.cutoff)) keeped.ids <- (ca$DEG$LIST[[i]][[j]]$p.value < p.cutoff)
-            if (!is.null(q.cutoff)) keeped.ids <- (ca$DEG$LIST[[i]][[j]]$q.value < q.cutoff)
-            ca$DEG$UP[[i]][[j]] <- as.character(ca$DEG$LIST[[i]][[j]]$ID[keeped.ids & (ca$DEG$LIST[[i]][[j]]$logFC > 0)])
-            ca$DEG$DW[[i]][[j]] <- as.character(ca$DEG$LIST[[i]][[j]]$ID[keeped.ids & (ca$DEG$LIST[[i]][[j]]$logFC < 0)])
-            ca$DEG$FL[[i]][[j]] <- as.character(setdiff(as.character(ca$DEG$LIST[[i]][[j]]$ID),
-                                                union(ca$DEG$UP[[i]][[j]], ca$DEG$DW[[i]][[j]])))
-            ca$DEG$SUM[(i - 1) * 2 + 1, j] <- length(ca$DEG$UP[[i]][[j]])
-            ca$DEG$SUM[(i - 1) * 2 + 2, j] <- length(ca$DEG$DW[[i]][[j]])
-            ca$DEG$SUMP[(i - 1) * 2 + 1, j] <- length(ca$DEG$UP[[i]][[j]]) / nrow(ca$DEG$LIST[[i]][[j]]) * 100
-            ca$DEG$SUMP[(i - 1) * 2 + 2, j] <- length(ca$DEG$DW[[i]][[j]]) / nrow(ca$DEG$LIST[[i]][[j]]) * 100
-            ma.coordinates[[i]][[j]] <- data.frame(gene = ca$DEG$LIST[[i]][[j]]$ID, Type = ifelse(keeped.ids, "DEG", "NDEG"),
-                                                   logFC = ca$DEG$LIST[[i]][[j]]$logFC, logCPM = ca$DEG$LIST[[i]][[j]]$logCPM)
-
-            message("[IdentifyDEGs] Identified up-regulated DEGs: ", length(ca$DEG$UP[[i]][[j]]), " .")
-            message("[IdentifyDEGs] Identified down-regulated DEGs: ", length(ca$DEG$DW[[i]][[j]]), " .")
-        }
-        label_1 <- colnames(ca$counts[[i]])
-        names(ca$DEG$LIST[[i]]) <- paste("00", gsub("[a-zA-Z ]", "", label_1[-1]), sep = "_")
-        names(ca$DEG$UP[[i]]) <- names(ca$DEG$FL[[i]]) <- names(ca$DEG$DW[[i]]) <- gsub("[a-zA-Z.]", "", names(ca$DEG$LIST[[i]]))
+    # cinsueta (var AOriginRatio)
+    theta.ar <- ca$aorigin.ratio[names(mu.I), ]
+    var.theta.ar <- apply(theta.ar, 1, var, na.rm = T)
+    keep2c <- var.theta.ar > 0.01  & mu.I > 1
+    goobj <- DoGO(sig.genes = names(keep2c[keep2c]), all.genes = ca$EXP$genes$ALL, p.cutoff = 1, q.cutoff = 1)
+    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
+    .target.terms <- intersect(goobj$TABLE$ID, target.terms)
+    gotablesimple <- goobj$TABLE[.target.terms,]
+    gotablesimple$qvalue <- p.adjust(gotablesimple$pvalue, method = "BH")
+    gotableins2 <- gotablesimple[, -6]
+    .carhr <- rep("", length=nrow(gotableins2))
+    for (.i in 1:nrow(gotableins2)) {
+        .carhr[.i] <- TAIRSTR2CARHRVEC(gotableins2$geneID[.i])
     }
-    gdatdf <- NULL
-    for (i in 1:length(ma.coordinates)) {
-        for (j in 1:length(ma.coordinates[[i]])) {
-            gdatdf <- rbind(gdatdf,
-                            data.frame(Species = names(ma.coordinates)[i],
-                                       Time    = names(ma.coordinates[[i]])[j],
-                                       ma.coordinates[[i]][[j]]))
+    SaveExcel(list(full=goobj$TABLE, simlify=cbind(gotableins2, .carhr)),
+              file.name = paste0(path.expbias, "/GO_cinsueta_VarARatio0.01_and_mu1.0.v2.xlsx"))
+
+    
+    goterms <- unique(c(gotableama$ID[gotableama$qvalue < 0.1],
+                        gotableriv$ID[gotableriv$qvalue < 0.1],
+                        gotableins$ID[gotableins$qvalue < 0.1],
+                        gotableins2$ID[gotableins2$qvalue < 0.1]))
+    
+    go2desc <- rep("", length=length(goterms))
+    gomat <- matrix(NA, ncol = 4, nrow = length(goterms))
+    rownames(gomat) <- names(go2desc) <- goterms
+    colnames(gomat) <- c("AA_CvMean", "II_CvMean", "II_VRatioMean", "RR_CvMean")
+    go2desc[gotableama$ID[gotableama$qvalue < 0.1]] <- gotableama$Description[gotableama$qvalue < 0.1]
+    go2desc[gotableriv$ID[gotableriv$qvalue < 0.1]] <- gotableriv$Description[gotableriv$qvalue < 0.1]
+    go2desc[gotableins$ID[gotableins$qvalue < 0.1]] <- gotableins$Description[gotableins$qvalue < 0.1]
+    go2desc[gotableins2$ID[gotableins2$qvalue < 0.1]] <- gotableins2$Description[gotableins2$qvalue < 0.1]
+    
+    gomat[gotableama$ID[gotableama$qvalue < 0.1], 1] <- -log10(gotableama$qvalue)[gotableama$qvalue < 0.1]
+    gomat[gotableins$ID[gotableins$qvalue < 0.1], 2] <- -log10(gotableins$qvalue)[gotableins$qvalue < 0.1]
+    gomat[gotableins2$ID[gotableins2$qvalue < 0.1], 3] <- -log10(gotableins2$qvalue)[gotableins2$qvalue < 0.1]
+    gomat[gotableriv$ID[gotableriv$qvalue < 0.1], 4] <- -log10(gotableriv$qvalue)[gotableriv$qvalue < 0.1]
+    
+    
+    gomat2 <- gomat
+    gomat2[is.na(gomat2)] <- 1
+    h <- heatmap.2(gomat2, trace = "none", scale = "none", dendrogram = "row", Colv = F,
+              hclustfun = function(x) hclust(x,method = 'ward.D2'),
+              density.info = "none", col = COLSFUNCC2(), key.xlab = "log2(FPKM + 1)")
+    df <- data.frame(gomat, desc = go2desc)
+    df <- df[h$rowInd, ]
+    SaveExcel(list(Sheet1=df), file.name = paste0(path.lib, "/CVLogFPKM0.2_meanLogFPKM1.0.xlsx"))
+}
+
+
+
+
+
+
+PlotRqsMDS <- function(ca) {
+    rsqmat <- matrix(NA, ncol = 4 * 9, nrow = 4 * 9)
+    f <- cbind(ca$fpkm$AA, ca$fpkm$IA, ca$fpkm$IR, ca$fpkm$RR)
+    f <- log10(f[ca$EXP$gene$ALL, ] + 1)
+    
+    sd.log10.f <- apply(f, 1, sd, na.rm = T)
+    mu.log10.f <- apply(f, 1, mean, na.rm = T)
+    cv.log10.f <- sd.log10.f / mu.log10.f
+    
+    #f <- f[(cv.log10.f > 1.5), ]
+    
+    for (i in 2:(4*9)) {
+        for (j in 1:(i-1)) {
+            rsqmat[i, j] <- summary(lm(f[, i] ~ f[, j]))$r.squared
         }
     }
+    
+    colnames(rsqmat) <- rownames(rsqmat) <- 
+        paste0(rep(SPLABELS, each = 9), "__", rep(TIMELABELS, times = 4))
+    
+    mds <- data.frame(cmdscale(as.dist(1 - rsqmat)))
+    mdsdf <- data.frame(
+        x = mds$X1, y = mds$X2,
+        species = sapply(strsplit(rownames(mds), "__"), function(x) x[1]),
+        time = gsub(" hr", "", sapply(strsplit(rownames(mds), "__"), function(x) x[2]))
+    )
+    g <- ggplot(mdsdf, aes(x = x, y = y, color = species, label = time))
+    g <- g + geom_text(size=6) + coord_fixed()
+    g <- g + xlab("X1") + ylab("X2")
+    g <- g + scale_color_manual(values = c(COLS$ama, COLS$insA, COLS$insR, COLS$riv))
+    g <- g + theme_bw()
+    g <- g + xlim(-0.5, 0.5) + ylim(-0.5, 0.5)
+    g
+    
+    png(paste0(path.lib, "/logFPKM.MDS.png"), 340, 340)
+    plot(g)
+    dev.off()
+}
 
-    gdatdf$Species <- as.character(gdatdf$Species)
 
-    gdatdf$Species <- factor(gdatdf$Species, levels = SPLABELS2)
-    gdatdf$Time    <- factor(gdatdf$Time,    levels = TIMELABELS[-1])
-    gg <- ggplot(gdatdf, aes(x = logCPM, y = logFC, color = Type))
-    gg <- gg + geom_point(size = 0.1)
-    gg <- gg + theme_bw()
-    gg <- gg + theme(legend.position = "none", strip.background = element_rect(fill = "white", colour = "white"))
-    gg <- gg + scale_colour_manual(values = c(COLS$DE, COLS$NDE))
-    gg <- gg + facet_grid(Species ~ Time)
-    gg <- gg + ylab("logFC") + xlab("logCPM")
-    png(paste0(path.de, "/maplots.png"), 700, 600)
-    plot(gg)
+PlotPCA <- function(ca) {
+
+    f <- cbind(ca$fpkm$AA, ca$fpkm$IA, ca$fpkm$IR, ca$fpkm$RR)
+    f <- log10(f[ca$EXP$gene$ALL, ] + 1)
+    
+    fpkm.class <- rep(c('A-FPKM', 'IA-FPKM', 'IR-FPKM', 'R-FPKM'), each = 9)
+    time <- gsub(' hr', '', colnames(f))
+    colnames(f) <- paste0(fpkm.class, ' ', time)
+
+    pcaobj <- prcomp(t(f), scale = FALSE)
+    # plot proportion of variances of PCA
+    pca.prop.vars <- data.frame(Var = summary(pcaobj)$importance[2, ],
+                                PC = factor(colnames(summary(pcaobj)$importance),
+                                            levels = colnames(summary(pcaobj)$importance)))
+    pca.prop.vars.ggplot <- ggplot(pca.prop.vars, aes(x = PC, y = Var))
+    pca.prop.vars.ggplot <- pca.prop.vars.ggplot + geom_bar(stat = 'identity')
+    pca.prop.vars.ggplot <- pca.prop.vars.ggplot + theme_bw()
+    pca.prop.vars.ggplot <- pca.prop.vars.ggplot + theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+    pca.prop.vars.ggplot <- pca.prop.vars.ggplot + xlab('principal component')
+    pca.prop.vars.ggplot <- pca.prop.vars.ggplot + ylab('proportion of variance')
+    png(paste0(path.lib, '/pca.prop.vars.png'), 800, 400)
+    plot(pca.prop.vars.ggplot)
     dev.off()
     
-    ca$DEG$plots$maplots <- gg
-    ca$DEG$stats$deg.sump <- ca$DEG$SUMP
-    ca$DEG$stats$deg.sum  <- ca$DEG$SUM
-    ca$DEG$used.cutoff <- list(FPKM = FPKM_CUTOFF, p = p.cutoff, q = q.cutoff)
-    ca
-}
-
-
-
-
-
-
-
-IdentifyDEGsFCPlot <- function(ca, p.cutoff = NULL, q.cutoff = NULL) {
-    message("Starting to identify DEGs.")
-
-    if (is.null(p.cutoff) && is.null(q.cutoff)) stop("One of 'p.cutoff' and 'q.cutoff' should be given.")
-
-    tmpl.list <- vector("list", length(ca$parsed.counts))
-    names(tmpl.list) <- names(ca$parsed.counts)
-
-    degsheet <- NULL
-
-    for (sp in names(ca$DEG$LIST)) {
-        for (tm in names(ca$DEG$LIST[[sp]])) {
-            is.deg <- as.logical(ca$DEG$LIST[[sp]][[tm]]$q.value < q.cutoff)
-            up.fc0 <- as.logical(ca$DEG$LIST[[sp]][[tm]]$logFC > 0)
-            up.fc4 <- as.logical(ca$DEG$LIST[[sp]][[tm]]$logFC > 2)
-            up.fc8 <- as.logical(ca$DEG$LIST[[sp]][[tm]]$logFC > 3)
-            dw.fc0 <- as.logical(ca$DEG$LIST[[sp]][[tm]]$logFC < -0)
-            dw.fc4 <- as.logical(ca$DEG$LIST[[sp]][[tm]]$logFC < -2)
-            dw.fc8 <- as.logical(ca$DEG$LIST[[sp]][[tm]]$logFC < -3)
-
-            degsheet.1 <- data.frame(class = sp, time = tm, deg = "up-regulated", foldchange = "2 < FC ≤ 4",
-                                     value = sum(is.deg & up.fc0) - sum(is.deg & up.fc4))
-            degsheet.2 <- data.frame(class = sp, time = tm, deg = "up-regulated", foldchange = "4 < FC ≤ 8",
-                                     value = sum(is.deg & up.fc4) - sum(is.deg & up.fc8))
-            degsheet.3 <- data.frame(class = sp, time = tm, deg = "up-regulated", foldchange = "8 < FC",
-                                     value = sum(is.deg & up.fc8))
-            degsheet.4 <- data.frame(class = sp, time = tm, deg = "down-regulated", foldchange = "2 < FC ≤ 4",
-                                     value = sum(is.deg & dw.fc0) - sum(is.deg & dw.fc4))
-            degsheet.5 <- data.frame(class = sp, time = tm, deg = "down-regulated", foldchange = "4 < FC ≤ 8",
-                                     value = sum(is.deg & dw.fc4) - sum(is.deg & dw.fc8))
-            degsheet.6 <- data.frame(class = sp, time = tm, deg = "down-regulated", foldchange = "8 < FC",
-                                     value = sum(is.deg & dw.fc8))
-            degsheet <- rbind(degsheet, degsheet.1, degsheet.2, degsheet.3,
-                                        degsheet.4, degsheet.5, degsheet.6)
-        }
-    }
-
-    degsheet$class <- factor(degsheet$class, levels = SPLABELS)
-    degsheet$time <- as.character(degsheet$time)
-    degsheet$time <- gsub("00_12", TIMELABELS[5], degsheet$time)
-    degsheet$time <- gsub("00_24", TIMELABELS[6], degsheet$time)
-    degsheet$time <- gsub("00_48", TIMELABELS[7], degsheet$time)
-    degsheet$time <- gsub("00_72", TIMELABELS[8], degsheet$time)
-    degsheet$time <- gsub("00_96", TIMELABELS[9], degsheet$time)
-    degsheet$time <- gsub("00_2", TIMELABELS[2], degsheet$time)
-    degsheet$time <- gsub("00_4", TIMELABELS[3], degsheet$time)
-    degsheet$time <- gsub("00_8", TIMELABELS[4], degsheet$time)
-    degsheet$time <- factor(degsheet$time, levels = TIMELABELS[-1])
-    degsheet$deg <- factor(degsheet$deg, levels = c("up-regulated", "down-regulated"))
-    degsheet$foldchange <- factor(degsheet$foldchange, levels = c("2 < FC ≤ 4", "4 < FC ≤ 8", "8 < FC"))
-
-    gg <- ggplot(degsheet, aes(x = time, y = value, fill = class, alpha = foldchange))
-    gg <- gg + geom_bar(stat = "identity")
-    gg <- gg + theme_bw()
-    gg <- gg + facet_grid(deg ~ class)
-    gg <- gg + scale_fill_manual(values = c(COLS$ama, COLS$insA, COLS$insR, COLS$riv))
-    gg <- gg + scale_alpha_manual(values=c(0.40, 0.70, 1))
-    gg <- gg +  theme(axis.text.x = element_text(angle = 90, hjust = 1),
-                      strip.background = element_rect(fill = "white", colour = "white"))
-    gg <- gg + ylab("Time after submergence") + xlab("Number of DEGs")
-    ca$DEG$plots$num.of.degs <- gg
-    
-    png(paste0(path.de, "/DEG_numberofdegs.png"), 500, 300)
-    plot(gg)
+    pc.coord <- t(t(pcaobj$rotation) %*% f)
+    pca.pc.coords <- data.frame(pc.coord,
+                                fpkm = fpkm.class,
+                                time = time)
+    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC1, y = PC2, color = fpkm, label = time))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text() + scale_color_nejm() + coord_fixed()
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + theme_bw() + guides(color = guide_legend(title = ''))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC1 (', summary(pcaobj)$importance[2, 1] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC2 (', summary(pcaobj)$importance[2, 2] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-20, 40) + ylim(-70, -10)
+    png(paste0(path.lib, '/pca.pc1pc2.png'), 400, 400)
+    plot(pca.pc.coords.ggplot)
     dev.off()
-    
-    ca
+
+    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC2, y = PC3, color = fpkm, label = time))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text() + scale_color_nejm() + coord_fixed()
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + theme_bw() + guides(color = guide_legend(title = ''))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC2 (', summary(pcaobj)$importance[2, 2] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC3 (', summary(pcaobj)$importance[2, 3] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-70, -10) + ylim(-40, 20)
+    png(paste0(path.lib, '/pca.pc2pc3.png'), 400, 400)
+    plot(pca.pc.coords.ggplot)
+    dev.off()
+
 }
-
-
-
-PlotFPKMScatter.plot_xy <- function(A = NULL, R = NULL, a = NULL, r = NULL, gid, gname, gdesc) {
-    if (is.null(A) && is.null(R)) {
-        A = ca$fpkm$AA[gid, ] * (1/3)
-        R = ca$fpkm$RR[gid, ] * (2/3)
-        a = ca$fpkm$IA[gid, ]
-        r = ca$fpkm$IR[gid, ]
-        gname <- ifelse(!is.null(CARHR2NAME[[gid]]), CARHR2NAME[[gid]], "")
-        gdesc <- ifelse(!is.null(CARHR2DESC[[gid]]), CARHR2DESC[[gid]], "")
-    }
-    log10A <- log10(A + 1)
-    log10a <- log10(a + 1)
-    log10R <- log10(R + 1)
-    log10r <- log10(r + 1)
-    df <- rbind(data.frame(A = log10A, R = log10R, time = gsub(" hr", "", TIMELABELS), allopolyploid = "synthetic"),
-                data.frame(A = log10a, R = log10r, time = gsub(" hr", "", TIMELABELS), allopolyploid = "C. insueta"))
-    g <- ggplot(df, aes(x = A, y = R, label = time, colour = allopolyploid, group = allopolyploid))
-    g <- g + geom_abline(intercept = 0, slope = 1, colour = "#AAAAAA", linetype = 2)
-    g <- g + geom_abline(intercept = 0, slope = log10(3)/log10(2), colour = "#AAAAAA", linetype = 2)
-    g <- g + geom_path() + theme_bw() + coord_fixed()
-    g <- g + ggtitle(bquote(atop(.(paste0(gid, " ", gname)), atop(italic(.(gdesc)), "")))) 
-    g <- g + geom_text(size = 4, colour = c(rep("#E41A1C", 9), rep("#377E88", 9))) 
-    g <- g + xlab("log10(FPKM + 1) on A-genome") + ylab("log10(FPKM + 1) on R-genome")
-    g <- g + scale_color_manual(values = c("#B3CDE3", "#FBB4AE"))
-    g <- g + xlim(0, max(c(3, df$A, df$R))) + ylim(0, max(c(3, df$A, df$R)))
-    g
-}
-    
-PlotFPKMScatter.plot_rh <- function(A = NULL, R = NULL, a = NULL, r = NULL, gid, gname, gdesc) {
-    if (is.null(A) && is.null(R)) {
-        A = ca$fpkm$AA[gid, ] * (1/3)
-        R = ca$fpkm$RR[gid, ] * (2/3)
-        a = ca$fpkm$IA[gid, ]
-        r = ca$fpkm$IR[gid, ]
-        gname <- ifelse(!is.null(CARHR2NAME[[gid]]), CARHR2NAME[[gid]], "")
-        gdesc <- ifelse(!is.null(CARHR2DESC[[gid]]), CARHR2DESC[[gid]], "")
-    }
-    theta.AR <- A / (A + R)
-    theta.ar <- a / (a + r)
-    log10fpkm.AR <- log10(A * (1/3) + R * (2/3) + 1)
-    log10fpkm.ar <- log10(a + r + 1)
-    df <- rbind(data.frame(A = log10fpkm.AR * cos(pi * theta.AR), R = log10fpkm.AR * sin(pi * theta.AR),
-                           time = gsub(" hr", "", TIMELABELS), allopolyploid = "synthetic"),
-                data.frame(A = log10fpkm.ar * cos(pi * theta.ar), R = log10fpkm.ar * sin(pi * theta.ar),
-                           time = gsub(" hr", "", TIMELABELS), allopolyploid = "C. insueta"))
-    g <- ggplot(df, aes(x = A, y = R, label = time, colour = allopolyploid, group = allopolyploid))
-    g <- g + geom_abline(intercept = 0, slope = sin(pi/3)/cos(pi/3), colour = "#AAAAAA", linetype = 2)
-    g <- g + geom_path() + theme_bw() + coord_fixed()
-    g <- g + ggtitle(bquote(atop(.(paste0(gid, " ", gname)), atop(italic(.(gdesc)), "")))) 
-    g <- g + geom_text(size = 4, colour = c(rep("#E41A1C", 9), rep("#377E88", 9))) 
-    g <- g + xlab("log10(FPKM + 1) * cos(A-origin ratio * pi)") 
-    g <- g + ylab("log10(FPKM + 1) * sin(A-origin ratio * pi)")
-    g <- g + scale_color_manual(values = c("#B3CDE3", "#FBB4AE"))
-    g <- g + xlim(min(c(-3, df$A, df$R), na.rm = T), max(c(3, df$A, df$R), na.rm = T)) + ylim(0, max(c(3, df$A, df$R), na.rm = T))
-    g
-}
-    
-PlotFPKMScatter.plot_rhxy <- function(A = NULL, R = NULL, a = NULL, r = NULL, gid, gname, gdesc) {
-    if (is.null(A) && is.null(R)) {
-        A = ca$fpkm$AA[gid, ] * (1/3)
-        R = ca$fpkm$RR[gid, ] * (2/3)
-        a = ca$fpkm$IA[gid, ]
-        r = ca$fpkm$IR[gid, ]
-        gname <- ifelse(!is.null(CARHR2NAME[[gid]]), CARHR2NAME[[gid]], "")
-        gdesc <- ifelse(!is.null(CARHR2DESC[[gid]]), CARHR2DESC[[gid]], "")
-    }
-    theta.AR <- A / (A + R)
-    theta.ar <- a / (a + r)
-    log10fpkm.AR <- log10(A * (1/3) + R * (2/3) + 1)
-    log10fpkm.ar <- log10(a + r + 1)
-    #plot(0, 0, type = "n", xlim = c(0, 1), ylim = c(0, max(c(3, log10fpkm.AR, log10fpkm.ar))),
-    #     main = paste0(gid, " ", gname), sub = gdesc, xlab = "A-origin ratio", ylab = "log10(FPKM+1)")
-    #abline(v = 1/3, col = "#AAAAAA", lty = 2)
-    #lines(theta.AR, log10fpkm.AR, col = "red")
-    #lines(theta.ar, log10fpkm.ar, col = "blue")
-    #text(theta.AR, log10fpkm.AR, labels = gsub(" hr", "", TIMELABELS), col = "red")
-    #text(theta.ar, log10fpkm.ar, labels = gsub(" hr", "", TIMELABELS), col = "blue")
-    #legend("topleft", col = c("red", "blue"), legend = c("synthetic", "C. insueta"), lty = 1)
-    df <- rbind(data.frame(AOriginRatio = theta.AR, log10FPKM = log10fpkm.AR, 
-                           time = gsub(" hr", "", TIMELABELS), allopolyploid = "synthetic"),
-                data.frame(AOriginRatio = theta.ar, log10FPKM = log10fpkm.ar,
-                           time = gsub(" hr", "", TIMELABELS), allopolyploid = "C. insueta"))
-    g <- ggplot(df, aes(x = AOriginRatio, y = log10FPKM, label = time, colour = allopolyploid, group = allopolyploid))
-    g <- g + geom_vline(xintercept = 1/3, colour = "#AAAAAA", linetype = 2)
-    g <- g + geom_path() + theme_bw()
-    g <- g + ggtitle(bquote(atop(.(paste0(gid, " ", gname)), atop(italic(.(gdesc)), "")))) 
-    g <- g + geom_text(size = 4, colour = c(rep("#E41A1C", 9), rep("#377E88", 9))) 
-    g <- g + xlab("A-origin ratio") 
-    g <- g + ylab("log10(FPKM + 1)")
-    g <- g + scale_color_manual(values = c("#B3CDE3", "#FBB4AE"))
-    g <- g + xlim(0, 1) + ylim(0, max(c(3, log10fpkm.AR, log10fpkm.ar), na.rm = T))
-    g
-}
-    
-    
-PlotFPKMScatter <- function(ca) {
-    deg.AA <- union(unlist(ca$DEG$UP$AA), unlist(ca$DEG$DW$AA))
-    deg.RR <- union(unlist(ca$DEG$UP$RR), unlist(ca$DEG$DW$RR))
-    deg.IA <- union(unlist(ca$DEG$UP$IA), unlist(ca$DEG$DW$IA))
-    deg.IR <- union(unlist(ca$DEG$UP$IR), unlist(ca$DEG$DW$IR))
-    deg.AL <- unique(c(deg.AA, deg.RR, deg.IA, deg.IR))
-    for (g in rownames(ca$fpkm$AA)) {
-        g.name <- ifelse(!is.null(CARHR2NAME[[g]]), CARHR2NAME[[g]], "")
-        g.desc <- ifelse(!is.null(CARHR2DESC[[g]]), CARHR2DESC[[g]], "")
-        if (length(grep(g, deg.AL)) > 0) {
-            imgdir.xy <- paste0("~/Desktop/fpkm_scatter/xy/DEGs/", g, ".png")
-            imgdir.pl <- paste0("~/Desktop/fpkm_scatter/pl/DEGs/", g, ".png")
-            imgdir.rhxy <- paste0("~/Desktop/fpkm_scatter/rh/DEGs/", g, ".png")
-        } else {
-            imgdir.xy <- paste0("~/Desktop/fpkm_scatter/xy/nonDEGs/", g, ".png")
-            imgdir.pl <- paste0("~/Desktop/fpkm_scatter/pl/nonDEGs/", g, ".png")
-            imgdir.rhxy <- paste0("~/Desktop/fpkm_scatter/rh/nonDEGs/", g, ".png")
-        }
-        png(imgdir.rhxy, width = 400, height = 400)
-        .p <- PlotFPKMScatter.plot_rhxy(A = ca$fpkm$AA[g, ] * (1/3), R = ca$fpkm$RR[g, ] * (2/3),
-                         a = ca$fpkm$IA[g, ], r = ca$fpkm$IR[g, ], g, g.name, g.desc)
-        plot(.p)
-        dev.off()
-        #png(imgdir.xy, width = 400, height = 400)
-        #.p <- PlotFPKMScatter.plot_xy(A = ca$fpkm$AA[g, ] * (1/3), R = ca$fpkm$RR[g, ] * (2/3),
-        #               a = ca$fpkm$IA[g, ], r = ca$fpkm$IR[g, ], g, g.name, g.desc)
-        #plot(.p)
-        #dev.off()
-        #png(imgdir.pl, width = 530, height = 280)
-        #.p <- PlotFPKMScatter.plot_rh(A = ca$fpkm$AA[g, ] * (1/3), R = ca$fpkm$RR[g, ] * (2/3),
-        #               a = ca$fpkm$IA[g, ], r = ca$fpkm$IR[g, ], g, g.name, g.desc)
-        #plot(.p)
-        #dev.off()
-    }
-    
-    
-}
-
-
-PlotRsqured <- function(ca) {
-    rsq.AA_IA <- rsq.RR_IR <- rsq.AA_RR <- rsq.IA_IR <- rep(0, 9)
-    
-    log10A <- log10(ca$fpkm$AA[ca$EXP$genes$ALL, ] + 1)
-    log10R <- log10(ca$fpkm$RR[ca$EXP$genes$ALL, ] + 1)
-    log10a <- log10(ca$fpkm$IA[ca$EXP$genes$ALL, ] + 1)
-    log10r <- log10(ca$fpkm$IR[ca$EXP$genes$ALL, ] + 1)
-    
-    for (i in 1:9) {
-        rsq.AA_IA[i] <- summary(lm(log10A[, i] ~ log10a[, i]))$r.squared
-        rsq.RR_IR[i] <- summary(lm(log10R[, i] ~ log10r[, i]))$r.squared
-        rsq.AA_RR[i] <- summary(lm(log10A[, i] ~ log10R[, i]))$r.squared
-        rsq.IA_IR[i] <- summary(lm(log10a[, i] ~ log10r[, i]))$r.squared
-    }
-    
-    rsq <- rbind(rsq.AA_IA, rsq.RR_IR, rsq.AA_RR, rsq.IA_IR)
-    rownames(rsq) <- c("AA - IA", "RR - IR", "AA - RR", "IA - IR")
-    colnames(rsq) <- TIMELABELS
-    rsq.df <- melt(rsq)
-    colnames(rsq.df) <- c("combination", "time", "RSquared")
-    gg <- ggplot(rsq.df, aes(x = time, colour = combination, y = RSquared, group = combination))
-    gg <- gg + geom_line()
-    gg <- gg + xlab("Time point") + ylab("R-squared value")
-    gg <- gg + theme_bw()
-    gg <- gg + scale_colour_brewer(palette = "Dark2")
-    ca$EXP$rsquared.plot <- gg
-    ca
-}
-
-
-GOHyper <- function(ca) {
-    go <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")
-    goid <- go[, 1]
-    goid2genes <- apply(go, 1, function(x) { unlist(strsplit(x[2], ";")) })
-    names(goid2genes) <- goid
-    
-    all.list <- ca$gene.names
-    
-    
-    
-    go <- list(UP = ca$DEG$UP, DW = ca$DEG$DW)
-    
-    for (sp in names(ca$DEG)) {
-        for (ud in c("UP", "DW")) {
-            for (tm in names(ca$DEG[[sp]][[ud]])) {
-                deg.list <- ca$DEG[[sp]][[ud]][[tm]]
-                for (goterm in names(goid2genes)) {
-                    genes.in.goterm <- goid2genes[[goterm]]
-                    has.goterm.null <- intersect(all.list, genes.in.goterm)
-                    unhas.goterm.null <- setdiff(all.list, genes.in.goterm)
-                    
-                }
-                
-                
-            }
-        }
-        
-    }
-}
-
 
 
 
@@ -664,122 +566,46 @@ PlotAoriginRatioDist <- function(ca) {
     g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5), legend.position = "none",
                    strip.background = element_rect(fill = "white", colour = "white"))
     g <- g + scale_x_continuous(breaks = c(0, 0.2, 1/3, 0.4, 0.6, 0.8, 1), minor_breaks = NULL)
-    g <- g + facet_wrap( ~ time, ncol = 3)
+    g <- g + facet_grid(~ time)#, ncol = 5)
     g <- g + xlab("A-origin ratio") + ylab("frequency")
     ca$BIAS$aorigin.ratio.dist <- g
-    ca
-}
 
-
-
-EstBiasedHomeologs <- function(ca) {
-    source(paste0(PATH$lib, '/homeoBiasGmm.R'))
-    target.homeologs <- (ca$fpkm$IA + ca$fpkm$IR > FPKM_CUTOFF)
-    bmat <- matrix("", ncol = 9, nrow = nrow(target.homeologs))
-    colnames(bmat) <- TIMELABELS
-    rownames(bmat) <- rownames(target.homeologs)
-    
+    png(paste0(path.expbias, "/AOriginRatio.hist.lib.png"), 1000, 240)
+    options(digits=2)
+    plot(g)
+    dev.off()
+    options(digits=6)
+     
+     
+    dfr <- NULL
     for (i in 1:9) {
-        d <- ca$aorigin.ratio[, i]
-        d <- d[target.homeologs[, i]]
-        d <- as.matrix(d[!is.na(d)])
-        d[d == 0, 1] <- 1e-5
-        d[d == 1, 1] <- 1 - 1e-5
-        y <- d[, 1]
-        
-        is.group1 <- (y <= 0.05 | y > 0.95)
-        y1 <- y[is.group1]
-        y2 <- y[!is.group1]
-        r <- c(length(y1)/length(y), length(y2)/length(y))
-        p1 <- getParamMV(y1)
-        p2 <- getParamMV(y2)
-        p <- matrix(c(p1[1], p2[1], p1[2], p2[2]), 2)
-        res <- fitBMM(y, r, p, tol=1E-15)
-        cat('\n')
-        
-        pdfname <- paste0(path.expbias, '/hist_hratio_bmm_Cinsueta_', i, 'th_timepoints.pdf')
-        plotBMM(y, res$ratio, res$param.beta, hist.by=0.02, my.xlab='A-origin ratio', pdf.name=pdfname)
-        dev.off()
-        cat('H-ratio (LR=1)\n')
-        cat(paste0(getValsGivenLR(res$ratio, res$param.beta, lr=1), "\n"))
-        loglike <- getLogLR(d, res$ratio, res$param.beta)
-        bias.genes <- getBiasGenes(d, loglike$logLR, lr=1)
-        
-        bmat[target.homeologs[, i], i] <- 'T'
-        bmat[rownames(bias.genes$df.bias.low), i] <- 'R'
-        bmat[rownames(bias.genes$df.bias.high), i] <- 'A'
+        ri <- r[target.homeologs[, i], i]
+        dfi <- data.frame(value = ri, gene = names(ri), time = TIMELABELS[i])
+        dfr <- rbind(dfr, dfi)
     }
     
-    df.sk <- NULL
-    u <- nrow(bmat[rowSums(bmat == 'A' | bmat == 'R') == 0, ] )
-    for (i in 1:8) {
-        is.from.A <- bmat[, i] == 'A'
-        is.from.R <- bmat[, i] == 'R'
-        is.from.N <- bmat[, i] != 'A' & bmat[, i] != 'R'
-        is.to.A <- bmat[, i + 1] == 'A'
-        is.to.R <- bmat[, i + 1] == 'R'
-        is.to.N <- bmat[, i + 1] != 'A' & bmat[, i + 1] != 'R'
-        tf <- TIMELABELS[i]
-        tt <- TIMELABELS[i + 1]
-        .df.sk <- data.frame(from = rep(c(paste0("A-biased ", tf), paste0("R-biased ", tf), paste0("non-biased ", tf)), each = 3)[-9],
-                             to   = rep(c(paste0("A-biased ", tt), paste0("R-biased ", tt), paste0("non-biased ", tt)), times = 3)[-9],
-                             weight = c(sum(is.from.A & is.to.A), sum(is.from.A & is.to.R), sum(is.from.A & is.to.N),
-                                        sum(is.from.R & is.to.A), sum(is.from.R & is.to.R), sum(is.from.R & is.to.N),
-                                        sum(is.from.N & is.to.A), sum(is.from.N & is.to.R)))
-        df.sk <- rbind(df.sk, .df.sk)
-    }
-    skp <- gvisSankey(df.sk, from = "from", to = "to", weight = "weight",
-                     options = list(width = "automatic", height = "automatic"))
-    
-    dfnum <- melt(apply(bmat, 2, table)[2:3, ])
-    dfnum$Var1 <- ifelse(dfnum$Var1 == 'A', "A-biased", "R-biased")
-    colnames(dfnum) <- c("homeolog", "time", "value")
-    g <- ggplot(dfnum, aes(x = time, y = value, fill = homeolog, group = homeolog))
-    g <- g + geom_bar(position = "dodge", stat = "identity")
-    g <- g + ylab("Number of biased homeologs") + xlab("time")
+    gene2chr_txt <- read.table(paste0(PATH$lib, "/src/gene_chr.txt"), header = F, sep = "\t")
+    gene2chr <- gene2chr_txt[, 2]
+    names(gene2chr) <- gene2chr_txt[, 1]
+    dfr <- data.frame(dfr, chr = gene2chr[dfr$gene])
+    dfr <- dfr[grep("Chr", dfr$chr), ]
+    g <- ggplot(dfr, aes(x = value))
+    g <- g + geom_histogram(binwidth = 0.025)
     g <- g + theme_bw()
-    
-    
-    ca$BIAS$biasedgenes.skplot <- skp
-    ca$BIAS$num.of.homeologs <- g
-    ca$BIAS$mat <- bmat
-    
-    write.table(apply(bmat, 2, table), file = paste0(path.expbias, "/number_of_biased_homeologs.xls"),
-                row.names = T, col.names = T, sep = "\t", quote = FALSE)
+    g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5), legend.position = "none",
+                   strip.background = element_rect(fill = "white", colour = "white"))
+    g <- g + scale_x_continuous(breaks = c(0, 0.2, 1/3, 0.4, 0.6, 0.8, 1), minor_breaks = NULL)
+    g <- g + facet_grid(chr ~ time, scale="free_y")
+    g <- g + xlab("A-origin ratio") + ylab("frequency")
+    png(paste0(path.expbias, "/AOriginRatio.hist.chr.png"), 1500, 1200)
+    plot(g)
+    dev.off()
     
     ca
 }
 
 
-BIAS.GO <- function(ca, p.cutoff = 1, q.cutoff = 1) {
-    go <- list(ABiased = vector("list", 9), RBiased = vector("list", 9))
-    names(go$ABiased) <- names(go$RBiased) <- TIMELABELS
-    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
-    for (i in 1:9) {
-        .biased.a <- rownames(ca$BIAS$mat)[ca$BIAS$mat[, i] == "A"]
-        .biased.r <- rownames(ca$BIAS$mat)[ca$BIAS$mat[, i] == "R"]
-        .go.a <- DoGO(sig.genes = .biased.a, all.genes = ca$EXP$genes$ALL, p.cutoff = p.cutoff, q.cutoff = q.cutoff, ontology = "BP")
-        .go.r <- DoGO(sig.genes = .biased.r, all.genes = ca$EXP$genes$ALL, p.cutoff = p.cutoff, q.cutoff = q.cutoff, ontology = "BP")
-        .go.a <- .go.a$TABLE[ intersect(.go.a$TABLE$ID, target.terms), ]
-        .go.r <- .go.r$TABLE[ intersect(.go.r$TABLE$ID, target.terms), ]
-        .go.a$qvalue <- p.adjust(.go.a$pvalue, method = "BH")
-        .go.r$qvalue <- p.adjust(.go.r$pvalue, method = "BH")
-        go$ABiased[[i]] <- .go.a[, c("ID", "Description", "GeneRatio", "BgRatio", "pvalue", "qvalue", "geneID", "Count")]
-        go$RBiased[[i]] <- .go.r[, c("ID", "Description", "GeneRatio", "BgRatio", "pvalue", "qvalue", "geneID", "Count")]
-    }
-    
-    SaveExcel(go$ABiased, file.name = paste0(path.expbias, "/BIAS_GO_A-BiasedHomeologs.xlsx"))
-    gc()
-    SaveExcel(go$RBiased, file.name = paste0(path.expbias, "/BIAS_GO_R-BiasedHomeologs.xlsx"))
-    gc()
-    
-    ca <- ca$BIASGO <- go
-    ca
-}
 
-TAIRSTR2CARHR <- function(x) {
-    unlist(TAIR2CARHR[unlist(strsplit(x, '/'))])
-}
 
 
 PlotProfile <- function(g, ca, cls = TRUE, m = c(10, 10), col = NULL) {
@@ -796,19 +622,18 @@ PlotProfile <- function(g, ca, cls = TRUE, m = c(10, 10), col = NULL) {
     df[df[, 2] == "", 2] <- df[df[, 2] == "", 1]
     df[df[, 3] == "", 3] <- df[df[, 3] == "", 1]
     if (!is.null(col)) df[, 3] <- paste0("[", col, "] ", df[, 3])
-
     colnames(g.fpkm) <- paste0(rep(SPLABELS, each = 9), " (", TIMELABELS, ")")
     rownames(g.fpkm) <- df[, 3]
     g.fpkm <- log10(g.fpkm + 1)
     if (cls) {
-        heatmap.2(g.fpkm, trace = "none", scale = "none", dendrogram = "row", Colv = F,
+        heatmap.2(g.fpkm, trace = "none", scale = "row", dendrogram = "row", Colv = F,
               hclustfun = function(x) hclust(x,method = 'ward.D2'),
-              density.info = "none", col = COLSFUNCC2(), key.xlab = "log2(FPKM + 1)", margins = m,
+              density.info = "none", col = COLSFUNC2(), key.xlab = "z-score", margins = m,
               colsep = c(9, 18, 27, 36), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
     } else {
         heatmap.2(g.fpkm, trace = "none", scale = "none", dendrogram = "none", Colv = F, Rowv = F,
               hclustfun = function(x) hclust(x,method = 'ward.D2'),
-              density.info = "none", col = COLSFUNCC2(), key.xlab = "log2(FPKM + 1)", margins = m,
+              density.info = "none", col = COLSFUNC2(), key.xlab = "z-score", margins = m,
               colsep = c(9, 18, 27, 36), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
     }
 }
@@ -833,34 +658,324 @@ PlotProfile.FC <- function(g, ca, cls = TRUE, m = c(10, 10), col = NULL) {
     df[df[, 2] == "", 2] <- df[df[, 2] == "", 1]
     df[df[, 3] == "", 3] <- df[df[, 3] == "", 1]
     if (!is.null(col)) df[, 3] <- paste0("[", col, "] ", df[, 3])
-    colnames(g.fpkm) <- paste0(rep(SPLABELS, each = 9), " (", TIMELABELS, ")")
+
+    splabels <- c('C. amara', 'C. insueta (A-sub)', 'C. insueta (R-sub)', 'C. rivularis')
+    colnames(g.fpkm) <- paste0(rep(splabels, each = 9), " (", TIMELABELS, ")")
+    
     rownames(g.fpkm) <- df[, 3]
     g.fpkm <- g.fpkm[, -c(1, 9+1, 18+1, 27+1)]
     if (cls) {
-        heatmap.2(g.fpkm, trace = "none", scale = "none", dendrogram = "row", Colv = F, key.title = "",
+        h <- heatmap.2(g.fpkm, trace = "none", scale = "none", dendrogram = "row", Colv = F, key.title = "",
               hclustfun = function(x) hclust(x,method = 'ward.D2'),
               density.info = "none", col = COLSFUNC2(), key.xlab = "log2-foldchange", margins = m, keysize = 1.2,
               colsep = c(8, 16, 24, 32), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
     } else {
-        heatmap.2(g.fpkm, trace = "none", scale = "none", dendrogram = "none", Colv = F, Rowv = F, key.title = "",
+        h <- heatmap.2(g.fpkm, trace = "none", scale = "none", dendrogram = "none", Colv = F, Rowv = F, key.title = "",
               hclustfun = function(x) hclust(x,method = 'ward.D2'),
               density.info = "none", col = COLSFUNC2(), key.xlab = "log2-foldchange", margins = m, keysize = 1.2,
               colsep = c(8, 16, 24, 32), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
     }
+    invisible(h)
 }
+
+
 
 
 CalcExpressedGenes <- function(ca) {
-    exp.AA <- apply(ca$fpkm$AA, 2, function(x) {names(x)[x > FPKM_CUTOFF]})
-    exp.RR <- apply(ca$fpkm$RR, 2, function(x) {names(x)[x > FPKM_CUTOFF]})
-    exp.II <- apply(ca$fpkm$IA + ca$fpkm$IR, 2, function(x) {names(x)[x > FPKM_CUTOFF]})
-    exp.AA.union <- unique(unlist(exp.AA))
-    exp.RR.union <- unique(unlist(exp.RR))
-    exp.II.union <- unique(unlist(exp.II))
-    ca$EXP$genes <- list(AA = exp.AA.union, RR = exp.RR.union, II = exp.II.union,
-                         ALL = unique(c(exp.AA.union, exp.AA.union, exp.II.union)))
+    exp.AA <- rownames(ca$fpkm$AA)[apply(ca$fpkm$AA > FPKM_CUTOFF, 1, any)]
+    exp.RR <- rownames(ca$fpkm$RR)[apply(ca$fpkm$RR > FPKM_CUTOFF, 1, any)]
+    exp.IA <- rownames(ca$fpkm$IA)[apply(ca$fpkm$IA > FPKM_CUTOFF, 1, any)]
+    exp.IR <- rownames(ca$fpkm$IR)[apply(ca$fpkm$IR > FPKM_CUTOFF, 1, any)]
+    exp.all <- unique(c(exp.AA, exp.RR, exp.IA, exp.IR))
+    print(paste0("Overlap(AA, RR): ",  round(length(intersect(exp.AA, exp.RR))/length(union(exp.AA, exp.RR)), 3)))
+    print(paste0("Overlap(IA, IR): ",  round(length(intersect(exp.IA, exp.IR))/length(union(exp.IA, exp.IR)), 3)))
+    print(paste0("Overlap(AA, IA): ",  round(length(intersect(exp.AA, exp.IA))/length(union(exp.AA, exp.IA)), 3)))
+    print(paste0("Overlap(RR, IR): ",  round(length(intersect(exp.RR, exp.IR))/length(union(exp.RR, exp.IR)), 3)))
+    
+    png(paste0(path.lib, "/Exp-genes-venn.png"), 500, 500)
+    v <- venn(list(AA = exp.AA, IA = exp.IA, IR = exp.IR, RR = exp.RR))
+    dev.off()
+    
+    genes <- gofull <- gosimple <- vector("list", length = length(attr(v, "intersections")))
+    names(genes) <- names(gofull) <- names(gosimple) <- c(names(attr(v, "intersections")))
+    for (vn in names(attr(v, "intersections"))) {
+        .g <- attr(v, "intersections")[[vn]]
+        .go <- DoGO2(sig.genes = .g, all.genes = exp.all)
+        gofull[[vn]] <- .go$GOTABLE
+        gosimple[[vn]] <- .go$GOSMPLTABLE
+        genes[[vn]] <- BindTairName(.g)
+    }
+    
+    names(gofull)    <- gsub(":", "-", names(gofull))
+    names(gosimple) <- gsub(":", "-", names(gosimple))
+    names(genes)     <- gsub(":", "-", names(genes))
+    SaveExcel(gofull, paste0(path.lib, "/Exp-genes-GO-full.xlsx"))
+    gc()
+    SaveExcel(gosimple, paste0(path.lib, "/Exp-genes-GO-simple.xlsx"))
+    gc()
+    SaveExcel(genes, paste0(path.lib, "/Exp-genes.xlsx"))
+    gc() 
+    
+    # expressed genes
+    ca$EXP$genes <- list(AA = exp.AA, RR = exp.RR,
+                         IA = exp.IA, IR = exp.IR,
+                         ALL = exp.all)
+    
+    neo.exp.IA <- setdiff(exp.IA, exp.AA)
+    neo.exp.IR <- setdiff(exp.IR, exp.RR)
+    sup.exp.IA <- setdiff(exp.AA, exp.IA)
+    sup.exp.IR <- setdiff(exp.RR, exp.IR)
+    
+    print(paste0("Newly expressed in A: ", length(neo.exp.IA)))
+    print(paste0("Suppressed in A:      ", length(sup.exp.IA)))
+    print(paste0("Newly expressed in R: ", length(neo.exp.IR)))
+    print(paste0("Suppressed in R:      ", length(sup.exp.IR)))
+    
+    print(length(intersect(neo.exp.IA, neo.exp.IR))/length(union(neo.exp.IA, neo.exp.IR)))
+    print(length(intersect(sup.exp.IA, sup.exp.IR))/length(union(sup.exp.IA, sup.exp.IR)))
+    
+    neo.exp.IA.go <- DoGO2(sig.genes = neo.exp.IA, all.genes = exp.all)
+    neo.exp.IR.go <- DoGO2(sig.genes = neo.exp.IR, all.genes = exp.all)
+    sup.exp.IA.go <- DoGO2(sig.genes = sup.exp.IA, all.genes = exp.all)
+    sup.exp.IR.go <- DoGO2(sig.genes = sup.exp.IR, all.genes = exp.all)
+    
+    neo.IA.df <- list(gene = BindTairName(neo.exp.IA),
+                      GOFULL = neo.exp.IA.go$GOTABLE,
+                      GOSMPL = neo.exp.IA.go$GOSMPLTABLE)
+    neo.IR.df <- list(gene = BindTairName(neo.exp.IR),
+                      GOFULL = neo.exp.IR.go$GOTABLE,
+                      GOSMPL = neo.exp.IR.go$GOSMPLTABLE)
+    sup.IA.df <- list(gene = BindTairName(sup.exp.IA),
+                      GOFULL= sup.exp.IA.go$GOTABLE,
+                      GOSMPL = sup.exp.IA.go$GOSMPLTABLE)
+    sup.IR.df <- list(gene = BindTairName(sup.exp.IR),
+                      GOFULL= sup.exp.IR.go$GOTABLE,
+                      GOSMPL = sup.exp.IR.go$GOSMPLTABLE)
+    
+    SaveExcel(neo.IA.df, paste0(path.lib, "/Newly-expressed-genes-A-genome.xlsx"))
+    gc()
+    SaveExcel(sup.IA.df, paste0(path.lib, "/Suppresed-genes-A-genome.xlsx"))
+    gc()
+    SaveExcel(neo.IR.df, paste0(path.lib, "/Newly-expressed-genes-R-genome.xlsx"))
+    gc()
+    SaveExcel(sup.IR.df, paste0(path.lib, "/Suppresed-genes-R-genome.xlsx"))
+    gc()
+    
+    invisible(ca)
+}
+
+CalcNeoExpressedGenes <- function(ca) {
+    exp.AA <- ca$EXP$genes$AA
+    exp.RR <- ca$EXP$genes$RR
+    exp.IA <- rownames(ca$fpkm$IA[apply(ca$fpkm$IA, 1, mean) > FPKM_CUTOFF, ])
+    exp.IR <- rownames(ca$fpkm$IR[apply(ca$fpkm$IR, 1, mean) > FPKM_CUTOFF, ])
+    exp.all <- ca$EXP$genes$ALL
+    
+    neo.exp.IA.from.AA <- setdiff(exp.IA, exp.AA)
+    neo.exp.IA.from.RR <- intersect(neo.exp.IA.from.AA, exp.RR)
+    neo.exp.IR.from.RR <- setdiff(exp.IR, exp.RR)
+    neo.exp.IR.from.AA <- intersect(neo.exp.IR.from.RR, exp.AA)
+    exp.IA.and.AA <- intersect(exp.AA, exp.IA)
+    exp.IR.and.RR <- intersect(exp.RR, exp.IR)
+    
+    rep.exp.IA.from.AA <- setdiff(exp.AA, exp.IA)
+    rep.exp.IR.from.RR <- setdiff(exp.RR, exp.IR)
+    
+    png(paste0(path.lib, "/ExpNeo-genes-venn.png"), 500, 500)
+    v <- venn(list(AA = exp.AA, IA = exp.IA, IR = exp.IR, RR = exp.RR))
+    dev.off()
+    
+    genes <- gofull <- gosimple <- vector("list", length = length(attr(v, "intersections")) + 1)
+    names(genes) <- names(gofull) <- names(gosimple) <- c(names(attr(v, "intersections")), "II")
+    for (vn in names(attr(v, "intersections"))) {
+        .g <- attr(v, "intersections")[[vn]]
+        e <- try(.go <- DoGO2(sig.genes = .g, all.genes = exp.all))
+        if (class(e) == "try-error") {
+            gofull[[vn]] <- data.frame(Desc = "no results.")
+            gosimple[[vn]] <- data.frame(Desc = "no results.")
+        } else {
+            gofull[[vn]] <- .go$GOTABLE
+            gosimple[[vn]] <- .go$GOSMPLTABLE
+        }
+        genes[[vn]] <- BindTairName(.g)
+    }
+    
+    .go <- DoGO2(sig.genes = exp.ii.union, all.genes = exp.all)
+    genes[["II"]] <- BindTairName(exp.ii.union)
+    gofull[["II"]] <- .go$GOTABLE
+    gosimple[["II"]] <- .go$GOSMPLTABLE
+    
+    names(gofull)    <- gsub(":", "-", names(gofull))
+    names(gosimple) <- gsub(":", "-", names(gosimple))
+    names(genes)     <- gsub(":", "-", names(genes))
+    SaveExcel(gofull, paste0(path.lib, "/ExpNeo-genes-GO-full.xlsx"))
+    gc()
+    SaveExcel(gosimple, paste0(path.lib, "/ExpNeo-genes-GO-simple.xlsx"))
+    gc()
+    SaveExcel(genes, paste0(path.lib, "/ExpNeo-genes.xlsx"))
+    gc() 
+    
+    invisible(ca)
+}
+
+
+IdentifyVEH <- function(ca) {
+    .calchighcvgenes <- function(f, tag) {
+        log10.f <- log10(f + 1)
+        sd.log10.f <- apply(log10.f, 1, sd, na.rm = T)
+        mu.log10.f <- apply(log10.f, 1, mean, na.rm = T)
+        cv.log10.f <- sd.log10.f / mu.log10.f
+        
+        g <- ggplot(data.frame(cv = cv.log10.f, mean = mu.log10.f, gene = ifelse( (cv.log10.f > 0.20) & (mu.log10.f > 1.0), 'VEG', 'nonVEG')),
+                    aes(x = mean, y = cv, color = gene))
+        g <- g + geom_point(alpha = 0.2, size = 2) + scale_color_manual(values =  c('#999999', '#E41A1C'))
+        g <- g + xlab('mean(log10FPKM)') + ylab('cv(log10FPKM)')
+        png(paste0(path.expbias, '/CV.disp.', tag, '.png'), 500, 400)
+        plot(g)
+        dev.off()
+        
+        highcv <- (cv.log10.f > 0.20) & (mu.log10.f > 1.0)
+        highcv.genes <- names(highcv)[highcv]
+        goobj <- DoGO2(sig.genes = highcv.genes, all.genes = ca$EXP$genes$ALL)
+        SaveExcel(list(full=goobj$GOTABLE, simlify=goobj$GOSMPLTABLE),
+                  file.name = paste0(path.expbias, "/GO_", tag, "_CV0.20_and_mu1.0.xls"))
+        invisible(list(go = goobj$GOSMPLTABLE, gene = highcv.genes,
+                       df = data.frame(gene = highcv.genes, sd = sd.log10.f[highcv.genes],
+                                  mean = mu.log10.f[highcv.genes], cv = cv.log10.f[highcv.genes])))
+    }
+    
+    A <- ca$fpkm$AA[ca$EXP$genes$ALL, ]
+    R <- ca$fpkm$RR[ca$EXP$genes$ALL, ]
+    I <- ca$fpkm$II[ca$EXP$genes$ALL, ]
+    a <- ca$fpkm$IA[ca$EXP$genes$ALL, ]
+    r <- ca$fpkm$IR[ca$EXP$genes$ALL, ]
+    A.go <- .calchighcvgenes(A, "AA")
+    R.go <- .calchighcvgenes(R, "RR")
+    a.go <- .calchighcvgenes(a, "IA")
+    r.go <- .calchighcvgenes(r, "IR")
+    I.go <- .calchighcvgenes(I, "II")
+    print(paste0("# highCV genes in A: ", length(A.go$gene)))
+    print(paste0("# highCV genes in R: ", length(R.go$gene)))
+    print(paste0("# highCV genes in a: ", length(a.go$gene)))
+    print(paste0("# highCV genes in r: ", length(r.go$gene)))
+    print(paste0("# highCV genes in I: ", length(I.go$gene)))
+    
+    vlist <- list(IA = a.go$gene, IR = r.go$gene)#), A = A.go$gene, R = R.go$gene)
+    
+    highcv.genes.df <- list(Sheet1 = BindTairName(a.go$df),
+                            Sheet2 = BindTairName(r.go$df),
+                            Sheet3 = BindTairName(A.go$df),
+                            Sheet4 = BindTairName(R.go$df))
+    SaveExcel(highcv.genes.df, file.name = paste0(path.expbias, "/VEHs.IA_IR_AA_RR.xlsx"))
+ 
+    goterms <- unique(c(a.go$go$ID[a.go$go$qvalue < 0.1],
+                        r.go$go$ID[r.go$go$qvalue < 0.1],
+                        A.go$go$ID[A.go$go$qvalue < 0.1],
+                        R.go$go$ID[R.go$go$qvalue < 0.1]))
+    go2desc <- rep("", length = length(goterms))
+    gomat <- matrix(NA, ncol = 4, nrow = length(goterms))
+
+    rownames(gomat) <- names(go2desc) <- goterms
+    colnames(gomat) <- c("IA", "IR", "A", "R")
+    go2desc[a.go$go$ID[a.go$go$qvalue < 0.1]] <- a.go$go$Description[a.go$go$qvalue < 0.1]
+    go2desc[r.go$go$ID[r.go$go$qvalue < 0.1]] <- r.go$go$Description[r.go$go$qvalue < 0.1]
+    go2desc[A.go$go$ID[A.go$go$qvalue < 0.1]] <- A.go$go$Description[A.go$go$qvalue < 0.1]
+    go2desc[R.go$go$ID[R.go$go$qvalue < 0.1]] <- R.go$go$Description[R.go$go$qvalue < 0.1]
+
+    gomat[a.go$go$ID[a.go$go$qvalue < 0.1], "IA"] <- -log10(a.go$go$qvalue[a.go$go$qvalue < 0.1])
+    gomat[r.go$go$ID[r.go$go$qvalue < 0.1], "IR"] <- -log10(r.go$go$qvalue[r.go$go$qvalue < 0.1])
+    gomat[A.go$go$ID[A.go$go$qvalue < 0.1], "A"] <- -log10(A.go$go$qvalue[A.go$go$qvalue < 0.1])
+    gomat[R.go$go$ID[R.go$go$qvalue < 0.1], "R"] <- -log10(R.go$go$qvalue[R.go$go$qvalue < 0.1])
+
+    df <- data.frame(gomat, desc = go2desc)
+    SaveExcel(list(Sheet1 = df), file.name = paste0(path.expbias, "/VEH_GOresults.xlsx"))
+
+    
     ca
 }
+
+
+plotFCRsquared <- function(ca) {
+    A <- log10(ca$fpkm$AA + 1)[ca$EXP$genes$ALL, ]
+    R <- log10(ca$fpkm$RR + 1)[ca$EXP$genes$ALL, ]
+    a <- log10(ca$fpkm$IA + 1)[ca$EXP$genes$ALL, ]
+    r <- log10(ca$fpkm$IR + 1)[ca$EXP$genes$ALL, ]
+    A.fc <- (A - A[, 1])[, -1]
+    R.fc <- (R - R[, 1])[, -1]
+    a.fc <- (a - a[, 1])[, -1]
+    r.fc <- (r - r[, 1])[, -1]
+    
+    f <- log10(ca$fpkm$II + 1)[ca$EXP$genes$ALL, ]
+    sd.log10.f <- apply(f, 1, sd, na.rm = T)
+    mu.log10.f <- apply(f, 1, mean, na.rm = T)
+    cv.log10.f <- sd.log10.f / mu.log10.f
+    
+    fcmat <- cbind(A.fc, a.fc, r.fc, R.fc)
+    fcmat <- fcmat[cv.log10.f > 0.6, ]
+    colnames(fcmat) <- paste0(rep(c("A", "IA", "IR", "R"), each = 8),
+                              " (", TIMELABELS[-1], ")")
+    
+    rsqmatrix <- matrix(NA, ncol = ncol(fcmat), nrow = ncol(fcmat))
+    colnames(rsqmatrix) <- rownames(rsqmatrix) <- colnames(fcmat)
+    for (ci in 1:ncol(rsqmatrix)) {
+        for (ri in 1:nrow(rsqmatrix)) {
+            rsqmatrix[ri, ci] <- summary(lm(fcmat[, ri] ~ fcmat[, ci]))$r.squared
+        }
+    }
+    colnames(rsqmatrix) <- rownames(rsqmatrix) <- rep(TIMELABELS[-1], times = 4)
+
+    png(paste0(path.de, "/log10FC.fpkm.Rsquared.png"), 800, 800)
+    heatmap.2(rsqmatrix, trace = "none", scale="none", dendrogram="none", Colv = F, Rowv = F,
+              density.info = "none", col = COLSFUNC(), margins = c(4, 4),
+              key.xlab = "R-squared value", key.title = "", sepcolor = "white",
+              colsep = c(1:4 * 8), rowsep = c(1:4 * 8), sepwidth = c(0.1, 0.1))
+    dev.off()
+}
+
+
+
+plotScatter <- function(ca, g, path.prefix) {
+    for (.g in g) {
+        .t <- CARHR2TAIR[[.g]]
+        .s <- CARHR2NAME[[.g]]
+        if (is.null(.t)) {
+            gname <- .g
+        } else {
+            if (is.null(.s)) {.s <- ""
+            } else { .s <- paste0(" / ", .s)}
+            gname <- paste0(.g, " (", .t, .s, ")")
+            
+        }
+        exp.A <- log10(ca$fpkm$AA[.g, ] + 1)
+        exp.a <- log10(ca$fpkm$IA[.g, ] + 1)
+        exp.r <- log10(ca$fpkm$IR[.g, ] + 1)
+        exp.R <- log10(ca$fpkm$RR[.g, ] + 1)
+        exp.I <- log10(ca$fpkm$IA[.g, ] * (1/2) + ca$fpkm$IA[.g, ] * (2/2) + 1)
+        ARatio <- ca$aorigin.ratio[.g, ]
+        lb <- gsub(" hr", "", TIMELABELS)
+        png(paste0(path.prefix, "/", .g, ".png"), 730, 320)
+        plot(0, 0, type = "n",  xlim = c(-0.2, 1.2), axes = F,
+             ylim = c(-0.2, max(3, max(c(exp.a, exp.r, exp.A, exp.R)))) + 0.2,
+             xlab = "A-origin ratio", ylab = "log10FPKM",
+             main = gname)
+        grid()
+        axis(1, c(0, 0.2, 1/3, 0.4, 0.6, 0.8, 1.0), c("0", "0.2", "1/3", "0.4", "0.6", "0.8", "1.0"))
+        axis(2)
+        #abline(v = c(0, 1/3, 2/3, 1), col = "#6f6f6f", lty = 2)
+        abline(v = c(0, 1), col = "#000000", lty = 1)
+        text(rev(-0.02 * 1:9), exp.R, labels = lb, col = brewer.pal(8, "Dark2"))
+        lines(rev(-0.02 * 1:9), exp.R, col = "#999999")
+        text(1 + 0.02*1:9, exp.A, labels = lb, col = brewer.pal(8, "Dark2"))
+        lines(1 + 0.02 * 1:9, exp.A, col = "#999999")
+        
+        lines(ARatio, exp.I, col = "#999999", lwd = 1.4)
+        text(ARatio, exp.I, labels = lb, col = brewer.pal(8, "Dark2"), cex = 2)
+        dev.off()
+    }
+    
+
+}
+
 
 
 
@@ -875,55 +990,10 @@ DoGO <- function(sig.genes = NULL, all.genes = NULL, p.values = NULL, ontology =
     all.genes.at <- all.genes.at[all.genes.at != ""]
     sig.genes.at <- sig.genes.at[sig.genes.at != ""]
     ego <- enrichGO(gene = sig.genes.at, universe = all.genes.at, OrgDb = org.At.tair.db,
-                    ont = ontology, pAdjustMethod = "BH", keytype = "TAIR",
+                    ont = ontology, pAdjustMethod = "BH", keyType = "TAIR",
                     pvalueCutoff = p.cutoff, qvalueCutoff = q.cutoff, readable = FALSE)
-        rgo <- summary(ego)
+    rgo <- summary(ego)
     list(TABLE = rgo, OBJ = ego)
-}
-
-
-
-DEG.GO <- function(ca, do.simplify = TRUE, cf = 0.7, p.cutoff = 1, q.cutoff = 1) {
-    goobj <- go <- list(UP = ca$DEG$UP, DW = ca$DEG$DW)
-    for (ud in c("UP", "DW")) {
-        for (sp in names(ca$DEG[[ud]])) {
-            for (tm in names(ca$DEG[[ud]][[sp]])) {
-                .go <- DoGO(sig.genes = ca$DEG[[ud]][[sp]][[tm]], all.genes = ca$EXP$genes$ALL,
-                            p.cutoff = p.cutoff, q.cutoff = q.cutoff, ontology = "BP")
-                go[[ud]][[sp]][[tm]]    <- .go$TABLE
-                goobj[[ud]][[sp]][[tm]] <- .go$OBJ
-            }
-        }
-    }
-    ca$DEGGO <- list(table = go, obj = goobj)
-    
-    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
-    gosim <- go
-    for (ud in c("UP", "DW")) {
-        for (sp in names(go[[ud]])) {
-            for (tm in names(go[[ud]][[sp]])) {
-                .tb <- go[[ud]][[sp]][[tm]]
-                .target.terms <- intersect(.tb$ID, target.terms)
-                .tb <- .tb[.target.terms,]
-                .tb$qvalue <- p.adjust(.tb$pvalue, method = "BH")
-                gosim[[ud]][[sp]][[tm]] <- .tb[, c("ID", "Description", "GeneRatio", "BgRatio",
-                                                   "pvalue", "qvalue", "geneID", "Count")]
-            }
-        }
-    }
-    ca$DEGGOSMPL <- gosim
-    
-    for (ud in c("UP", "DW")) {
-        for (sp in names(go[[ud]])) {
-            SaveExcel(gosim[[ud]][[sp]], file.name = paste0(path.de, "/DEGGOSMPL_", ud, "_", sp, ".xlsx"))
-            gc()
-        }
-    }
-    
-    
-    
-    
-    ca
 }
 
 
@@ -936,9 +1006,12 @@ BindTairName <- function(dat) {
         rownames(dat) <- dat
     }
     rnm <- colnames(dat)
-    tairid <- as.character(unlist(CARHR2TAIR[as.character(rownames(dat))]))
-    genename <- as.character(unlist(CARHR2NAME[as.character(rownames(dat))]))
-    genedesc <- as.character(unlist(CARHR2DESC[as.character(rownames(dat))]))
+    tairid <- as.character((CARHR2TAIR[as.character(rownames(dat))]))
+    genename <- as.character((CARHR2NAME[as.character(rownames(dat))]))
+    genedesc <- as.character((CARHR2DESC[as.character(rownames(dat))]))
+    tairid[tairid == "NULL"] <- ""
+    genename[genename == "NULL"] <- ""
+    genedesc[genedesc == "NULL"] <- ""
     dat <- data.frame(dat, TAIR = tairid, name = genename, description = genedesc, stringsAsFactors = F)
     dat[is.na(dat)] <- ""
     colnames(dat) <- c(rnm, "TAIR", "name", "description")
@@ -952,120 +1025,44 @@ BindTairName <- function(dat) {
 
 
 
-TestRatioShifts <- function(ca) {
-    pval <- matrix(NA, ncol = 6, nrow = nrow(ca$fpkm$AA))
-    rownames(pval) <- rownames(ca$fpkm$AA)
-    colnames(pval) <- c("A_is_0", "R_is_0", "a_is_0", "r_is_0", "A_is_a", "R_is_r")
-    A <- log10(ca$fpkm$AA * (1/3) + 1)
-    R <- log10(ca$fpkm$RR * (2/3) + 1)
+PlotRsqHeatmap <- function(f, type = "all") {
+    A <- log10(ca$fpkm$AA + 1)
+    R <- log10(ca$fpkm$RR + 1)
     a <- log10(ca$fpkm$IA + 1)
     r <- log10(ca$fpkm$IR + 1)
+    y <- cbind(A, a, r, R)
     
-    for (g in rownames(ca$fpkm$AA)) {
-        try.A_is_0 <- try(t.test(A[g, ])$p.value)
-        try.R_is_0 <- try(t.test(R[g, ])$p.value)
-        try.a_is_0 <- try(t.test(a[g, ])$p.value)
-        try.r_is_0 <- try(t.test(r[g, ])$p.value)
-        try.A_is_a <- try(t.test(A[g, ], a[g, ])$p.value)
-        try.R_is_r <- try(t.test(R[g, ], r[g, ])$p.value)
-        if (class(try.A_is_0) != "try-error") {pval[g, 1] <- try.A_is_0}
-        if (class(try.R_is_0) != "try-error") {pval[g, 2] <- try.R_is_0}
-        if (class(try.a_is_0) != "try-error") {pval[g, 3] <- try.a_is_0}
-        if (class(try.r_is_0) != "try-error") {pval[g, 4] <- try.r_is_0}
-        if (class(try.A_is_a) != "try-error") {pval[g, 5] <- try.A_is_a}
-        if (class(try.R_is_r) != "try-error") {pval[g, 6] <- try.R_is_r}
-    }
+    I <- log10(ca$fpkm$II + 1)
+    cv.I <- apply(I, 1, sd) / apply(I, 1, mean)
     
-    qval <- apply(pval, 2, p.adjust, method = "BH")
-    pval[is.na(pval)] <- 1
-    qval[is.na(qval)] <- 1
-    
-    .cutoff.q <- 0.001 
-    A_isnot_0 <- (qval[, "A_is_0"] < .cutoff.q)
-    R_isnot_0 <- (qval[, "R_is_0"] < .cutoff.q)
-    a_isnot_0 <- (qval[, "a_is_0"] < .cutoff.q)
-    r_isnot_0 <- (qval[, "r_is_0"] < .cutoff.q)
-    A_isnot_a <- (qval[, "A_is_a"] < .cutoff.q)
-    R_isnot_r <- (qval[, "R_is_r"] < .cutoff.q)
-    
-    
-    left_to_right <- qval[(!R_isnot_r) & (A_isnot_a) & (!a_isnot_0) & (A_isnot_0), ]
-    right_to_left <- qval[(!R_isnot_r) & (A_isnot_a) & (a_isnot_0) & (!A_isnot_0), ]
-    bottom_to_top <- qval[(!A_isnot_a) & (R_isnot_r) & (!r_isnot_0) & (R_isnot_0), ]
-    top_to_bottom <- qval[(!A_isnot_a) & (R_isnot_r) & (r_isnot_0) & (!R_isnot_0), ]
-    
-    for (gid in rownames(left_to_right)) {
-        png(paste0("~/Desktop/fpkm_scatter/left_to_right/", gid, ".xy.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_xy(gid = gid))
-        dev.off()
-        png(paste0("~/Desktop/fpkm_scatter/left_to_right/", gid, ".rh.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_rhxy(gid = gid))
-        dev.off()
-    }
-    for (gid in rownames(right_to_left)) {
-        png(paste0("~/Desktop/fpkm_scatter/right_to_left/", gid, ".xy.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_xy(gid = gid))
-        dev.off()
-        png(paste0("~/Desktop/fpkm_scatter/right_to_left/", gid, ".rh.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_rhxy(gid = gid))
-        dev.off()
-    }
-    for (gid in rownames(bottom_to_top)) {
-        png(paste0("~/Desktop/fpkm_scatter/bottom_to_top/", gid, ".xy.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_xy(gid = gid))
-        dev.off()
-        png(paste0("~/Desktop/fpkm_scatter/bottom_to_top/", gid, ".rh.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_rhxy(gid = gid))
-        dev.off()
-    }
-    for (gid in rownames(top_to_bottom)) {
-        png(paste0("~/Desktop/fpkm_scatter/top_to_bottom/", gid, ".xy.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_xy(gid = gid))
-        dev.off()
-        png(paste0("~/Desktop/fpkm_scatter/top_to_bottom/", gid, ".rh.png"), 400, 400)
-        plot(PlotFPKMScatter.plot_rhxy(gid = gid))
-        dev.off()
-    }
-    
-    
-    
-    
-}
-
-
-
-
-
-PlotDEGVenn <- function(ca) {
-    for (ud in c("UP", "DW")) {
-        for (tm in 1:8) {
-            .dat.A <- ca$DEG[[ud]]$AA[[tm]]
-            .dat.a <- ca$DEG[[ud]]$IA[[tm]]
-            .dat.r <- ca$DEG[[ud]]$IR[[tm]]
-            .dat.R <- ca$DEG[[ud]]$RR[[tm]]
-            .dat <- rbind(data.frame(elements = .dat.A, sets  = 'AA'),
-                          data.frame(elements = .dat.a, sets  = 'Ia'),
-                          data.frame(elements = .dat.r, sets  = 'Ir'),
-                          data.frame(elements = .dat.R, sets  = 'RR'))
-            png(paste0(path.de, "/DEG_VENN1_", ud, "_", tm, "th-timepoints.png"))
-            plot(venn(list(AA = .dat.A, IA = .dat.a, IR = .dat.r, RR = .dat.R)))
-            dev.off()
-            png(paste0(path.de, "/DEG_VENN2_", ud, "_", tm, "th-timepoints.png"))
-            plot(venneuler(.dat))
-            dev.off()
+    y <- y[cv.I > 0.8, ]
+    rsqmatrix <- NULL
+    rsqmatrix <- matrix(NA, ncol = 4 * 9, nrow = 4 * 9)
+    colnames(rsqmatrix) <- rownames(rsqmatrix) <- paste0(rep(SPLABELS, each = 9), " (", rep(TIMELABELS, times = 4), ")")
+    for (ci in 1:ncol(rsqmatrix)) {
+        for (ri in 1:nrow(rsqmatrix)) {
+            rsqmatrix[ri, ci] <- summary(lm(y[, ri] ~ y[, ci]))$r.squared
         }
     }
+    heatmap.2(rsqmatrix, trace = "none", scale="none", dendrogram="none", Colv = F, Rowv = F,
+              density.info = "none", col = COLSFUNCC2(), margins = c(10, 10),
+              key.xlab = "R-squared value", key.title = "", sepcolor = "white",
+              colsep = c(1:4 * 9), rowsep = c(1:4 * 9), sepwidth = c(0.1, 0.1))
 }
 
 
 
-PlotAll <- function(ca) {
-    ca <- PlotAoriginRatioDist(ca)
-    ca <- IdentifyDEGsFCPlot(ca, q.cutoff = 0.1)
-    ca <- PlotRsqured(ca)
-    
-    
-}
+
+
+#SimplifyGO <- function(gotable) {
+#    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
+#    gotable <- gotable[intersect(gotable$ID, target.terms), ]
+#    gotable$qvalue <- p.adjust(gotable$pvalue, method = "BH")
+#    gotable
+#}
+
+
+
 
 
 
@@ -1080,12 +1077,12 @@ PlotAll <- function(ca) {
 
 .common.RData  <- paste0(PATH$lib, "/src/common.RData")
 .ca.RData <- paste0(PATH$lib, "/src/ca.RData")
-
-
-
+load(.common.RData)
+load(.ca.RData)
 stop()
+
+
 if (file.exists(.ca.RData)) {
-    load(.common.RData)
     load(.ca.RData)
 } else {
     design <- GetDesign()
@@ -1093,31 +1090,111 @@ if (file.exists(.ca.RData)) {
     ca <- GetCounts(ca, design)
     ca <- CalcFPKM(ca)
     ca <- CalcExpressedGenes(ca)
-    ca <- EstBiasedHomeologs(ca)
-    ca <- IdentifyDEGs(ca, q.cutoff = 0.1)
-    ca <- DEG.GO(ca)
-    ca <- BIAS.GO(ca)
-    
-    ca <- PlotAll(ca)
- 
-    # PlotFPKMScatter(ca)  # run this if needed
-    
-    
-   
+    #ca <- CalcNeoExpressedGenes(ca)
+    ca <- IdentifyVEH(ca)
+    ca <- PlotAoriginRatioDist(ca)
     save(ca, design, file = .ca.RData)
 }
 
 
 
 
+## scatterplot of A-origin ratio between 0 hr and 8 hr
+fa <- ca$fpkm$IA[, c(1, 4)]
+fr <- ca$fpkm$IR[, c(1, 4)]
+f <- cbind(fa, fr)
+f <- rownames(f[apply(f, 1, mean) > 1, ])
+ardf <- data.frame(H00 = ca$aorigin.ratio[f, 1],
+                   H08 = ca$aorigin.ratio[f, 4]) # 0,2,4,8
+ardf <- ardf[rowSums(is.na(ardf)) == 0, ]
+g <- ggplot(ardf, aes(H00, H08))
+g <- g + geom_point(size = 1, alpha = 0.5)
+g <- g + theme_bw() + xlab("0 hr") + ylab("8 hr")
+pdf(paste0(path.expbias, "/0h8h-aorigin-ratio.scatter.pdf"), 4.5, 4.5)
+ggMarginal(g, type = "histogram", bins = 40, col = "#363636", fill ="#363636")
+dev.off()
+
+
+## number of newly-expressed genes and silenced genes
+lapply(ca$EXP$genes, length)
+# A - Ia
+length(intersect(ca$EXP$genes$AA, ca$EXP$genes$IA)) / length(union(ca$EXP$genes$AA, ca$EXP$genes$IA))
+# R - Ir
+length(intersect(ca$EXP$genes$RR, ca$EXP$genes$IR)) / length(union(ca$EXP$genes$RR, ca$EXP$genes$IR))
+# A - R
+length(intersect(ca$EXP$genes$AA, ca$EXP$genes$RR)) / length(union(ca$EXP$genes$AA, ca$EXP$genes$RR))
+# Ia - Ir
+length(intersect(ca$EXP$genes$IA, ca$EXP$genes$IR)) / length(union(ca$EXP$genes$IA, ca$EXP$genes$IR))
+
+
+
+
+## gene expression profiles (z-scored)
+g <- c('CARHR049560', # STM/BUM
+       'CARHR279690', # BAM1
+       'CARHR158740', # BAM2
+       'CARHR227100', # BAM3
+       'CARHR202780', # PLT3
+       'CARHR274370') # REV
+g.fpkm <- cbind(ca$fpkm$AA[g, ], ca$fpkm$IA[g, ], ca$fpkm$IR[g, ], ca$fpkm$RR[g, ])
+rownames(g.fpkm) <- c('STM', 'BAM1', 'BAM2', 'BAM3', 'PLT3', 'REV')
+colnames(g.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+                           '  ', colnames(g.fpkm))
+.g.fpkm <- t(apply(log10(g.fpkm + 1), 1, scale))
+colnames(.g.fpkm) <- colnames(g.fpkm)
+g.fpkm <- .g.fpkm
+g.fpkm.df <- melt(g.fpkm)
+colnames(g.fpkm.df) <- c('gene', 'library', 'zscore')
+ghm <- ggplot(g.fpkm.df, aes(x = library, y = gene, fill = zscore))
+ghm <- ghm + geom_tile() + scale_fill_gradientn('value',
+            colours = rev(brewer.pal(9, 'Spectral')))
+ghm <- ghm + xlab('') + ylab('') + coord_fixed()
+ghm <- ghm + theme_bw() + guides(fill = guide_legend(title = 'z-score'))
+ghm <- ghm + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+                   strip.background = element_rect(fill = "white", colour = "white"))
+pdf(paste0(path.geneprof, '/meristem.selected.homeologs.pdf'), 10.8, 3)
+plot(ghm)
+dev.off()
 
 
 
 
 
 
+## meristem associated genes (gene expression)
+meristem.genes <- unique(c(GO2CARHR[['GO:0035266']], GO2CARHR[['GO:0010075']], GO2CARHR[['GO:0048509']]))
+meristem.genes <- intersect(meristem.genes, rownames(ca$fpkm$AA))
+meristem.fpkm <- cbind(ca$fpkm$AA[meristem.genes, ], ca$fpkm$IA[meristem.genes, ], 
+                      ca$fpkm$IR[meristem.genes, ], ca$fpkm$RR[meristem.genes, ])
+colnames(meristem.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+                           '  ', colnames(meristem.fpkm))
+meristem.fpkm <- log10(meristem.fpkm + 1)
+meristem.fpkm <- BindTairName(meristem.fpkm)
 
 
+## water deprivation
+watdep.genes <- GO2CARHR[['GO:0009414']]
+watdep.genes <- intersect(watdep.genes, rownames(ca$fpkm$AA))
+watdep.fpkm <- cbind(ca$fpkm$AA[watdep.genes, ], ca$fpkm$IA[watdep.genes, ], 
+                     ca$fpkm$IR[watdep.genes, ], ca$fpkm$RR[watdep.genes, ])
+colnames(watdep.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+                                '  ', colnames(watdep.fpkm))
+watdep.fpkm <- log10(watdep.fpkm + 1)
+watdep.fpkm <- BindTairName(watdep.fpkm)
+
+
+## response to ethylene
+ethylene.genes <- GO2CARHR[['GO:0009723']]
+ethylene.genes <- intersect(ethylene.genes, rownames(ca$fpkm$AA))
+ethylene.fpkm <- cbind(ca$fpkm$AA[ethylene.genes, ], ca$fpkm$IA[ethylene.genes, ], 
+                       ca$fpkm$IR[ethylene.genes, ], ca$fpkm$RR[ethylene.genes, ])
+colnames(ethylene.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+                                '  ', colnames(ethylene.fpkm))
+ethylene.fpkm <- log10(ethylene.fpkm + 1)
+ethylene.fpkm <- BindTairName(ethylene.fpkm)
+
+SaveExcel(list(meristem = meristem.fpkm, waterdep = watdep.fpkm, ethylene = ethylene.fpkm),
+          file = paste0(path.geneprof, '/gene.prof.xls'))
 
 
 
