@@ -461,6 +461,6 @@ python ../bin/make_cdr3_clusters_tsv.py -f fuguall.ct.cdr3aa.fa          \
 
 # Checnge the values of the vairables in R script and execute it.
 #$R
-#> source('../bin/make_cluster_abudance.R')
+#> source('../bin/make_cluster_abundance.R')
 ```
 
