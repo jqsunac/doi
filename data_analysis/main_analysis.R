@@ -11,7 +11,7 @@ suppressMessages(require(ggplot2))
 suppressMessages(require(ggsci))
 suppressMessages(require(ggExtra))
 suppressMessages(require(gplots))
-#suppressMessages(require(VennDiagram))
+suppressMessages(require(VennDiagram))
 #suppressMessages(require(grid))
 #suppressMessages(require(scales))
 #suppressMessages(require(outliers))
@@ -499,7 +499,7 @@ PlotPCA <- function(ca) {
     f <- cbind(ca$fpkm$AA, ca$fpkm$IA, ca$fpkm$IR, ca$fpkm$RR)
     f <- log10(f[ca$EXP$gene$ALL, ] + 1)
     
-    fpkm.class <- rep(c('A-FPKM', 'IA-FPKM', 'IR-FPKM', 'R-FPKM'), each = 9)
+    fpkm.class <- rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = 9)
     time <- gsub(' hr', '', colnames(f))
     colnames(f) <- paste0(fpkm.class, ' ', time)
 
@@ -518,27 +518,26 @@ PlotPCA <- function(ca) {
     plot(pca.prop.vars.ggplot)
     dev.off()
     
-    pc.coord <- t(t(pcaobj$rotation) %*% f)
-    pca.pc.coords <- data.frame(pc.coord,
+    pca.pc.coords <- data.frame(pcaobj$x,
                                 fpkm = fpkm.class,
                                 time = time)
     pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC1, y = PC2, color = fpkm, label = time))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text() + scale_color_nejm() + coord_fixed()
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text(size = 8) + scale_color_nejm() + coord_fixed()
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + theme_bw() + guides(color = guide_legend(title = ''))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC1 (', summary(pcaobj)$importance[2, 1] * 100, '%)'))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC2 (', summary(pcaobj)$importance[2, 2] * 100, '%)'))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-20, 40) + ylim(-70, -10)
-    png(paste0(path.lib, '/pca.pc1pc2.png'), 400, 400)
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-30, 30) + ylim(-30, 30)
+    png(paste0(path.lib, '/pca.pc1pc2.png'), 460, 400)
     plot(pca.pc.coords.ggplot)
     dev.off()
 
-    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC2, y = PC3, color = fpkm, label = time))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text() + scale_color_nejm() + coord_fixed()
+    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC1, y = PC3, color = fpkm, label = time))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text(size = 8) + scale_color_nejm() + coord_fixed()
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + theme_bw() + guides(color = guide_legend(title = ''))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC2 (', summary(pcaobj)$importance[2, 2] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC1 (', summary(pcaobj)$importance[2, 1] * 100, '%)'))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC3 (', summary(pcaobj)$importance[2, 3] * 100, '%)'))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-70, -10) + ylim(-40, 20)
-    png(paste0(path.lib, '/pca.pc2pc3.png'), 400, 400)
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-30, 30) + ylim(-30, 30)
+    png(paste0(path.lib, '/pca.pc1pc3.png'), 460, 400)
     plot(pca.pc.coords.ggplot)
     dev.off()
 
@@ -550,10 +549,10 @@ PlotPCA <- function(ca) {
 
 PlotAoriginRatioDist <- function(ca) {
     r <- ca$aorigin.ratio
-    target.homeologs <- (ca$fpkm$IA + ca$fpkm$IR > FPKM_CUTOFF)
     dfr <- NULL
     for (i in 1:9) {
-        ri <- r[target.homeologs[, i], i]
+        target.homeologs <- (ca$fpkm$IA[, i] > FPKM_CUTOFF) | (ca$fpkm$IR[, i] > FPKM_CUTOFF)
+        ri <- r[target.homeologs, i]
         dfi <- data.frame(value = ri, gene = names(ri), time = paste0(TIMELABELS[i], " (", length(ri), " homeologs)"))
         dfr <- rbind(dfr, dfi)
     }
@@ -577,9 +576,65 @@ PlotAoriginRatioDist <- function(ca) {
     options(digits=6)
      
      
+    R <- (ca$fpkm$AA/2) / (ca$fpkm$AA/2 + ca$fpkm$RR)
     dfr <- NULL
     for (i in 1:9) {
-        ri <- r[target.homeologs[, i], i]
+        target.homeologs <- (ca$fpkm$AA[, i] > FPKM_CUTOFF) | (ca$fpkm$RR[, i] > FPKM_CUTOFF)
+        #target.homeologs <- (ca$fpkm$AA[, i] / 2 + ca$fpkm$RR[, i] > FPKM_CUTOFF)
+        ri <- R[target.homeologs, i]
+        dfi <- data.frame(value = ri, gene = names(ri), time = paste0(TIMELABELS[i], " (", length(ri), " homeologs)"))
+        dfr <- rbind(dfr, dfi)
+    }
+
+    dfr$time <- factor(dfr$time, levels = paste0(TIMELABELS, " (", apply(target.homeologs, 2, sum), " homeologs)"))
+
+    g <- ggplot(dfr, aes(x = value))
+    g <- g + geom_histogram(binwidth = 0.025)
+    g <- g + theme_bw()
+    g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5), legend.position = "none",
+                   strip.background = element_rect(fill = "white", colour = "white"))
+    g <- g + scale_x_continuous(breaks = c(0, 0.2, 1/3, 0.4, 0.6, 0.8, 1), minor_breaks = NULL)
+    g <- g + facet_grid(~ time)#, ncol = 5)
+    g <- g + xlab("A-origin ratio") + ylab("frequency")
+
+    png(paste0(path.expbias, "/AOriginRatio.parent.hist.lib.png"), 1000, 240)
+    options(digits=2)
+    plot(g)
+    dev.off()
+    options(digits=6)
+
+    
+    
+    dfrR <- NULL
+    crrR <- NULL
+    for (i in 1:9) {
+        .r <- r[, i]
+        .R <- R[, i]
+        .k <- rowSums(cbind(ca$fpkm$IA[, i], ca$fpkm$AA[, i], ca$fpkm$RR[, i], ca$fpkm$IR[, i]) > FPKM_CUTOFF) > 0
+        .k.isval <- !is.na(rowSums(cbind(.r, .R)))
+        dfrR <- rbind(dfrR, data.frame(r = .r[.k & .k.isval], R = .R[.k & .k.isval], timepoint = TIMELABELS[i]))
+        crrR <- c(crrR, cor(.r[.k & .k.isval], .R[.k & .k.isval]))
+    }
+    dfrR$timepoint <- factor(dfrR$timepoint, levels = TIMELABELS)
+    g <- ggplot(dfrR, aes(x = r, y = R))
+    g <- g + geom_point(alpha = 0.4, size = 0.6) + theme_bw()
+    g <- g + xlab('A-origin ratio of C. insueta') + ylab('A-origin ratio of parental species')
+    g <- g + facet_wrap(~ timepoint, ncol = 3) + coord_fixed()
+    g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+                   strip.background = element_rect(fill = "white", colour = "white"))
+    print(crrR)
+    png(paste0(path.expbias, "/AOriginRatio.parent.and.child.png"), 800, 800)
+    options(digits=2)
+    plot(g)
+    dev.off()
+    options(digits=6)
+
+    
+    
+    dfr <- NULL
+    for (i in 1:9) {
+        target.homeologs <- (ca$fpkm$IA[, i] > FPKM_CUTOFF) | (ca$fpkm$IR[, i] > FPKM_CUTOFF)
+        ri <- r[target.homeologs, i]
         dfi <- data.frame(value = ri, gene = names(ri), time = TIMELABELS[i])
         dfr <- rbind(dfr, dfi)
     }
@@ -589,6 +644,8 @@ PlotAoriginRatioDist <- function(ca) {
     names(gene2chr) <- gene2chr_txt[, 1]
     dfr <- data.frame(dfr, chr = gene2chr[dfr$gene])
     dfr <- dfr[grep("Chr", dfr$chr), ]
+    dfr <- dfr[dfr$chr != 'ChrC', ]
+    dfr <- dfr[dfr$chr != 'ChrM', ]
     g <- ggplot(dfr, aes(x = value))
     g <- g + geom_histogram(binwidth = 0.025)
     g <- g + theme_bw()
@@ -598,10 +655,12 @@ PlotAoriginRatioDist <- function(ca) {
     g <- g + facet_grid(chr ~ time, scale="free_y")
     g <- g + xlab("A-origin ratio") + ylab("frequency")
     png(paste0(path.expbias, "/AOriginRatio.hist.chr.png"), 1500, 1200)
+    options(digits=2)
     plot(g)
     dev.off()
-    
-    ca
+    options(digits=6)
+
+    invisible(ca)
 }
 
 
@@ -866,6 +925,10 @@ IdentifyVEH <- function(ca) {
                             Sheet2 = BindTairName(r.go$df),
                             Sheet3 = BindTairName(A.go$df),
                             Sheet4 = BindTairName(R.go$df))
+    highcv.genes.df <- list(IA = BindTairName(a.go$df),
+                            IR = BindTairName(r.go$df),
+                            AA = BindTairName(A.go$df),
+                            RR = BindTairName(R.go$df))
     SaveExcel(highcv.genes.df, file.name = paste0(path.expbias, "/VEHs.IA_IR_AA_RR.xlsx"))
  
     goterms <- unique(c(a.go$go$ID[a.go$go$qvalue < 0.1],
@@ -889,8 +952,13 @@ IdentifyVEH <- function(ca) {
 
     df <- data.frame(gomat, desc = go2desc)
     SaveExcel(list(Sheet1 = df), file.name = paste0(path.expbias, "/VEH_GOresults.xlsx"))
-
     
+    dfrawgo <- list(VEH_AA = A.go$go, VEH_IA = a.go$go, VEH_IR = r.go$go, VEH_RR = R.go$go)
+    SaveExcel(dfrawgo, file.name = paste0(path.expbias, "/VEH_GOresults_AA_IA_IR_RR.xlsx"))
+        
+
+    ca$VEHGO <- gomat
+    ca$VEH <- highcv.genes.df
     ca
 }
 
@@ -992,7 +1060,7 @@ DoGO <- function(sig.genes = NULL, all.genes = NULL, p.values = NULL, ontology =
     ego <- enrichGO(gene = sig.genes.at, universe = all.genes.at, OrgDb = org.At.tair.db,
                     ont = ontology, pAdjustMethod = "BH", keyType = "TAIR",
                     pvalueCutoff = p.cutoff, qvalueCutoff = q.cutoff, readable = FALSE)
-    rgo <- summary(ego)
+    rgo <- as.data.frame(ego)
     list(TABLE = rgo, OBJ = ego)
 }
 
@@ -1054,23 +1122,97 @@ PlotRsqHeatmap <- function(f, type = "all") {
 
 
 
-#SimplifyGO <- function(gotable) {
-#    target.terms <- read.table(paste0(PATH$dat, "/go/go2carhr.tsv"), header = F, sep = "\t")[, 1]
-#    gotable <- gotable[intersect(gotable$ID, target.terms), ]
-#    gotable$qvalue <- p.adjust(gotable$pvalue, method = "BH")
-#    gotable
-#}
 
 
 
+plotGeneExpTimecourse <- function(ca, g) {
+    gexp <- rbind(ca$fpkm$AA[g, ], ca$fpkm$RR[g, ], ca$fpkm$IA[g, ], ca$fpkm$IR[g, ])
+    rownames(gexp) <- c('C. amara', 'C. rivularis', 'IA', 'IR')
+    gexpdf <- melt(log10(gexp + 1))
+    colnames(gexpdf) <- c('sample', 'timepoint', 'log10FPKM')
+    
+    gexpg <- ggplot(gexpdf, aes(x = timepoint, y = log10FPKM, group = sample, color = sample))
+    gexpg <- gexpg + geom_line() + scale_color_nejm() + ylim(0, 3)
+    gexpg <- gexpg + xlab('time point') + ylab('log10(FPKM)')
+    gexpg <- gexpg + theme_bw() + guides(color = guide_legend(title = ''))
+    gexpg
+    
+    rexpdf <- data.frame(Aorigin = ca$aorigin.ratio[g, ], timepoint = names(ca$aorigin.ratio[g, ]), gene = 'gene')
+    rexpg <- ggplot(rexpdf, aes(x = timepoint, y = Aorigin, group = gene))
+    rexpg <- rexpg + geom_line()# + scale_color_nejm()
+    rexpg <- rexpg + xlab('time point') + ylab('A-origin ratio')
+    rexpg <- rexpg + theme_bw() + ylim(0, 1)
+    rexpg
+ 
+    list(exp = gexpg, ratio = rexpg)   
+}
 
 
 
+Plot.VEH.GO.Profile <- function(ca, goid) {
+    go.enriched.genes <- GO2CARHR[[goid]]
+    veh.genes.A <- ca$VEH$AA$gene
+    veh.genes.a <- ca$VEH$IA$gene
+    veh.genes.r <- ca$VEH$IR$gene
+    veh.genes.R <- ca$VEH$RR$gene
+    
+    gene.name.list <- list(
+        AA = intersect(go.enriched.genes, veh.genes.A),
+        IA = intersect(go.enriched.genes, veh.genes.a),
+        IR = intersect(go.enriched.genes, veh.genes.r),
+        RR = intersect(go.enriched.genes, veh.genes.R)
+    )
+    venn(gene.name.list)
+    
+    gene.fpkm.list <- NULL
+    for (catename in names(gene.name.list)) {
+        gene.fpkm.list[[catename]] <- ca$fpkm[[catename]][gene.name.list[[catename]], ]
+        gene.name.x <- rownames(gene.fpkm.list[[catename]])
+        gene.name.x.df <- BindTairName(gene.name.x)
+        gene.name.x <- gene.name.x.df$name
+        rownames(gene.fpkm.list[[catename]]) <- gene.name.x
+    }
+    
+    gene.fc.list <- NULL
+    all.gene.set <- NULL
+    for (catename in names(gene.name.list)) {
+        gene.fpkm.x <- log2(gene.fpkm.list[[catename]] + 1)
+        gene.fc.list[[catename]] <- gene.fpkm.x[, -1] - gene.fpkm.x[, 1]
+        all.gene.set <- c(all.gene.set, rownames(gene.fc.list[[catename]]))
+    }
+    all.gene.set <- unique(all.gene.set)
+    all.gene.sheet <- matrix(NA, ncol = 4 * 8, nrow = length(all.gene.set))
+    rownames(all.gene.sheet) <- all.gene.set
+    all.gene.sheet[rownames(gene.fc.list[['AA']]), 1:8] <- gene.fc.list[['AA']]
+    all.gene.sheet[rownames(gene.fc.list[['IA']]), 9:16] <- gene.fc.list[['IA']]
+    all.gene.sheet[rownames(gene.fc.list[['IR']]), 17:24] <- gene.fc.list[['IR']]
+    all.gene.sheet[rownames(gene.fc.list[['RR']]), 25:32] <- gene.fc.list[['RR']]
 
-
-
-
-
+    rownames(all.gene.sheet) <- all.gene.set
+    SaveExcel(list(Sheet1=all.gene.sheet),
+              file = paste0(path.de, '/gene.prof.diff.go', gsub(':', '', goid) , '.xlsx'))
+    
+    
+    all.gene.set <- unique(unlist(gene.name.list))
+    fcsheet <- matrix(NA, ncol = 4 * 8, nrow = length(all.gene.set))
+    f.A <- log2(ca$fpkm$AA[all.gene.set, ] + 1)
+    f.a <- log2(ca$fpkm$IA[all.gene.set, ] + 1)
+    f.r <- log2(ca$fpkm$IR[all.gene.set, ] + 1)
+    f.R <- log2(ca$fpkm$RR[all.gene.set, ] + 1)
+    fc.A <- f.A[, -1] - f.A[, 1]
+    fc.a <- f.a[, -1] - f.a[, 1]
+    fc.r <- f.r[, -1] - f.r[, 1]
+    fc.R <- f.R[, -1] - f.R[, 1]
+    fcsheet <- cbind(fc.A[all.gene.set, ], fc.a[all.gene.set, ], fc.r[all.gene.set, ], fc.R[all.gene.set, ])
+    fcsheet <- BindTairName(fcsheet)
+    SaveExcel(list(Sheet1=fcsheet),
+              file = paste0(path.de, '/gene.prof.diff.go', gsub(':', '', goid) , '.alldata.xlsx'))
+    
+    #heatmap.2(as.matrix(gene.fc.list[[4]]), trace = "none", scale = "none", dendrogram = "row", Colv = F,
+    #          hclustfun = function(x) hclust(x,method = 'ward.D2'), lhei = c(8, 30),
+    #          density.info = "none", col = COLSFUNC2(), key.xlab = "log2-foldchange", key.title = '',
+    #          cexRow = 0.7, cexCol = 0.7)
+}
 
 
 
@@ -1098,33 +1240,139 @@ if (file.exists(.ca.RData)) {
 
 
 
+## A-origin ratio datasheet
+write.table(BindTairName(ca$aorigin.ratio), sep = '\t', quote = F, row.names = T,
+            file = paste0(path.expbias, '/A.origin.ratio.all_homeologs.xls'))
 
-## scatterplot of A-origin ratio between 0 hr and 8 hr
-fa <- ca$fpkm$IA[, c(1, 4)]
-fr <- ca$fpkm$IR[, c(1, 4)]
-f <- cbind(fa, fr)
-f <- rownames(f[apply(f, 1, mean) > 1, ])
-ardf <- data.frame(H00 = ca$aorigin.ratio[f, 1],
-                   H08 = ca$aorigin.ratio[f, 4]) # 0,2,4,8
-ardf <- ardf[rowSums(is.na(ardf)) == 0, ]
-g <- ggplot(ardf, aes(H00, H08))
-g <- g + geom_point(size = 1, alpha = 0.5)
-g <- g + theme_bw() + xlab("0 hr") + ylab("8 hr")
-pdf(paste0(path.expbias, "/0h8h-aorigin-ratio.scatter.pdf"), 4.5, 4.5)
-ggMarginal(g, type = "histogram", bins = 40, col = "#363636", fill ="#363636")
-dev.off()
+
+
+## scatter plots between homeologs at each time points
+for (i in 1:9) {
+    fa <- ca$fpkm$IA[, i]
+    fr <- ca$fpkm$IR[, i]
+    keep <- (fa > 1) | (fr > 1)
+    df <- data.frame(gene = names(keep)[keep], A = log10(fa[keep] + 1), R = log10(fr[keep] + 1))
+    g <- ggplot(df, aes(x = A, y = R))
+    g <- g + geom_point(alpha = .3) + coord_fixed() + theme_bw()
+    g <- g + xlab('log10(IA-FPKM)') + ylab('log10(IR-FPKM)')
+    pdf(paste0(path.expbias, "/FPKM-cinuseta-scatter-", TIMELABELS[i], ".pdf"), 4, 4)
+    print(g)
+    dev.off()
+}
+for (i in 1:9) {
+    xa <- ca$count$IA[, i]
+    xr <- ca$count$IR[, i]
+    fa <- ca$count$IA[, i]
+    fr <- ca$count$IR[, i]
+    keep <- (fa > 1) | (fr > 1)
+    df <- data.frame(gene = names(keep)[keep], A = log10(xa[keep] + 1), R = log10(xr[keep] + 1))
+    g <- ggplot(df, aes(x = A, y = R))
+    g <- g + geom_point(alpha = .3) + coord_fixed() + theme_bw()
+    g <- g + xlab('log10(count) of IA') + ylab('log10(count) of IR')
+    #g <- g + geom_abline(slope = log10(2) + 1, intercept = 0)
+    pdf(paste0(path.expbias, "/count-cinuseta-scatter-", TIMELABELS[i], ".pdf"), 4, 4)
+    print(g)
+    dev.off()
+}
+
+
+
+
+
+
+## scatterplot of A-origin ratio between any two samples
+cc <- matrix(NA, ncol = 9, nrow = 9)
+colnames(cc) <- rownames(cc) <- TIMELABELS
+for (i in 1:8) {
+    for (j in (i + 1):9) {
+        fa <- ca$fpkm$IA[, c(i, j)]
+        fr <- ca$fpkm$IR[, c(i, j)]
+        keep <- (rowSums(cbind(fa, fr) > 1) > 0)
+        ardf <- data.frame(samplei = ca$aorigin.ratio[keep, i],
+                           samplej = ca$aorigin.ratio[keep, j])
+        ardf <- ardf[rowSums(is.na(ardf)) == 0, ]
+        g <- ggplot(ardf, aes(samplei, samplej))
+        g <- g + geom_point(size = 1, alpha = 0.5)
+        g <- g + theme_bw()
+        g <- g + xlab(TIMELABELS[i]) + ylab(TIMELABELS[j])
+        pdf(paste0(path.expbias, "/", TIMELABELS[i], "-", TIMELABELS[j],
+                   "-aorigin-ratio.scatter.pdf"), 4.5, 4.5)
+        print(ggMarginal(g, type = "histogram", bins = 40, col = "#363636", fill ="#363636"))
+        dev.off()
+        cc[i, j] <- cor(ardf$samplei, ardf$samplej, method = 'pearson')
+    }
+}
+
+
+
 
 
 ## number of newly-expressed genes and silenced genes
 lapply(ca$EXP$genes, length)
-# A - Ia
-length(intersect(ca$EXP$genes$AA, ca$EXP$genes$IA)) / length(union(ca$EXP$genes$AA, ca$EXP$genes$IA))
-# R - Ir
-length(intersect(ca$EXP$genes$RR, ca$EXP$genes$IR)) / length(union(ca$EXP$genes$RR, ca$EXP$genes$IR))
-# A - R
-length(intersect(ca$EXP$genes$AA, ca$EXP$genes$RR)) / length(union(ca$EXP$genes$AA, ca$EXP$genes$RR))
-# Ia - Ir
-length(intersect(ca$EXP$genes$IA, ca$EXP$genes$IR)) / length(union(ca$EXP$genes$IA, ca$EXP$genes$IR))
+length(intersect(ca$EXP$genes$AA, ca$EXP$genes$IA)) / length(union(ca$EXP$genes$AA, ca$EXP$genes$IA)) # A - Ia
+length(intersect(ca$EXP$genes$RR, ca$EXP$genes$IR)) / length(union(ca$EXP$genes$RR, ca$EXP$genes$IR)) # R - Ir
+length(intersect(ca$EXP$genes$AA, ca$EXP$genes$RR)) / length(union(ca$EXP$genes$AA, ca$EXP$genes$RR)) # A - R
+length(intersect(ca$EXP$genes$IA, ca$EXP$genes$IR)) / length(union(ca$EXP$genes$IA, ca$EXP$genes$IR)) # Ia - Ir
+length(setdiff(ca$EXP$genes$AA, ca$EXP$genes$IA))
+length(setdiff(ca$EXP$genes$IA, ca$EXP$genes$AA))
+length(setdiff(ca$EXP$genes$RR, ca$EXP$genes$IR))
+length(setdiff(ca$EXP$genes$IR, ca$EXP$genes$RR))
+
+exp.AA <- ca$EXP$genes$AA
+exp.IA <- ca$EXP$genes$IA
+exp.RR <- ca$EXP$genes$RR
+exp.IR <- ca$EXP$genes$IR
+
+neo.IA.go <- DoGO(sig.genes = setdiff(exp.IA, exp.AA), all.genes = union(exp.IA, exp.AA))
+sil.IA.go <- DoGO(sig.genes = setdiff(exp.AA, exp.IA), all.genes = union(exp.IA, exp.AA))
+neo.IR.go <- DoGO(sig.genes = setdiff(exp.IR, exp.RR), all.genes = union(exp.IR, exp.RR))
+sil.IR.go <- DoGO(sig.genes = setdiff(exp.RR, exp.IR), all.genes = union(exp.IR, exp.RR))
+write.table(neo.IA.go, file = 'result_files/neoA.expressed.genes.go.xls', sep = '\t', col.names = TRUE)
+write.table(neo.IR.go, file = 'result_files/neoR.expressed.genes.go.xls', sep = '\t', col.names = TRUE)
+write.table(sil.IA.go, file = 'result_files/silenceA.expressed.genes.go.xls', sep = '\t', col.names = TRUE)
+write.table(sil.IR.go, file = 'result_files/silenceR.expressed.genes.go.xls', sep = '\t', col.names = TRUE)
+
+
+
+
+
+
+## number of newly-expressed genes and silenced genes (single replicate)
+for (i in 1:9) {
+    exp.AA <- ca$fpkm$AA[, i] > FPKM_CUTOFF
+    exp.RR <- ca$fpkm$RR[, i] > FPKM_CUTOFF
+    exp.IA <- ca$fpkm$IA[, i] > FPKM_CUTOFF
+    exp.IR <- ca$fpkm$IR[, i] > FPKM_CUTOFF
+    exp.AA <- names(exp.AA)[exp.AA]
+    exp.RR <- names(exp.RR)[exp.RR]
+    exp.IA <- names(exp.IA)[exp.IA]
+    exp.IR <- names(exp.IR)[exp.IR]
+    
+    print('========================================')
+    print(i)
+    print(paste0('A : ', length(exp.AA)))
+    print(paste0('R : ', length(exp.RR)))
+    print(paste0('IA: ', length(exp.IA)))
+    print(paste0('IR: ', length(exp.IR)))
+    print(paste0('A -> IA (-) : ', length(setdiff(exp.AA, exp.IA))))
+    print(paste0('A -> IA (+) : ', length(setdiff(exp.IA, exp.AA))))
+    print(paste0('R -> IR (-) : ', length(setdiff(exp.RR, exp.IR))))
+    print(paste0('R -> IR (+) : ', length(setdiff(exp.IR, exp.RR))))
+    print(paste0('Overlap(A, Ia):  ', length(intersect(exp.AA, exp.IA)) / length(union(exp.AA, exp.IA))))  # A - Ia
+    print(paste0('Overlap(R, Ir):  ', length(intersect(exp.RR, exp.IR)) / length(union(exp.RR, exp.IR))))  # R - Ir
+    print(paste0('Overlap(A, R) :  ', length(intersect(exp.AA, exp.RR)) / length(union(exp.AA, exp.RR))))  # A - R
+    print(paste0('Overlap(Ia, Ir): ', length(intersect(exp.IA, exp.IR)) / length(union(exp.IA, exp.IR))))  # Ia - Ir
+}
+
+
+## venn diagrams of VEHs
+veh.set <- list(A = ca$VEH$AA$gene, R = ca$VEH$RR$gene, IA = ca$VEH$IA$gene, IR = ca$VEH$IR$gene)
+venn.diagram(veh.set, fill = pal_nejm()(4), alpha = rep(0.6, 4),
+             height = 1600, width = 1600, main.cex = 0.8,
+             filename = paste0(path.de, '/VEH.set.tiff'))
+
+
+
 
 
 
@@ -1135,10 +1383,12 @@ g <- c('CARHR049560', # STM/BUM
        'CARHR158740', # BAM2
        'CARHR227100', # BAM3
        'CARHR202780', # PLT3
-       'CARHR274370') # REV
+       'CARHR274370', # REV
+       'CARHR137920') # PDF1
+g <- rev(g)
 g.fpkm <- cbind(ca$fpkm$AA[g, ], ca$fpkm$IA[g, ], ca$fpkm$IR[g, ], ca$fpkm$RR[g, ])
-rownames(g.fpkm) <- c('STM', 'BAM1', 'BAM2', 'BAM3', 'PLT3', 'REV')
-colnames(g.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+rownames(g.fpkm) <- rev(c('STM', 'BAM1', 'BAM2', 'BAM3', 'PLT3', 'REV', 'PDF1'))
+colnames(g.fpkm) <- paste0(rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = 9),
                            '  ', colnames(g.fpkm))
 .g.fpkm <- t(apply(log10(g.fpkm + 1), 1, scale))
 colnames(.g.fpkm) <- colnames(g.fpkm)
@@ -1152,7 +1402,7 @@ ghm <- ghm + xlab('') + ylab('') + coord_fixed()
 ghm <- ghm + theme_bw() + guides(fill = guide_legend(title = 'z-score'))
 ghm <- ghm + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
                    strip.background = element_rect(fill = "white", colour = "white"))
-pdf(paste0(path.geneprof, '/meristem.selected.homeologs.pdf'), 10.8, 3)
+pdf(paste0(path.geneprof, '/meristem.selected.homeologs.pdf'), 12.3, 3.6)
 plot(ghm)
 dev.off()
 
@@ -1163,6 +1413,7 @@ dev.off()
 
 ## meristem associated genes (gene expression)
 meristem.genes <- unique(c(GO2CARHR[['GO:0035266']], GO2CARHR[['GO:0010075']], GO2CARHR[['GO:0048509']]))
+meristem.genes <- unique(GO2CARHR[['GO:0048507']])
 meristem.genes <- intersect(meristem.genes, rownames(ca$fpkm$AA))
 meristem.fpkm <- cbind(ca$fpkm$AA[meristem.genes, ], ca$fpkm$IA[meristem.genes, ], 
                       ca$fpkm$IR[meristem.genes, ], ca$fpkm$RR[meristem.genes, ])
@@ -1170,6 +1421,26 @@ colnames(meristem.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
                            '  ', colnames(meristem.fpkm))
 meristem.fpkm <- log10(meristem.fpkm + 1)
 meristem.fpkm <- BindTairName(meristem.fpkm)
+
+## plot water deprivation
+g.fpkm <- meristem.fpkm[, 1:36]
+g.fpkm.names <- meristem.fpkm[, 38]
+names(g.fpkm.names) <- rownames(g.fpkm)
+g.fpkm.names['CARHR027940'] <- 'HSL1(1)'
+g.fpkm.names['CARHR239910'] <- 'HSL1(2)'
+rownames(g.fpkm) <- g.fpkm.names
+pdf(paste0(path.geneprof, '/meristem.homeologs.pdf'), 13, 45)
+heatmap.2(as.matrix(g.fpkm), trace = "none", scale = "row", dendrogram = "row", Colv = F,
+          hclustfun = function(x) hclust(x,method = 'ward.D2'), lhei = c(1, 20),
+          density.info = "none", col = COLSFUNC2(), key.xlab = "z-score",
+          colsep = c(9, 18, 27, 36), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
+dev.off()
+
+
+
+
+
+
 
 
 ## water deprivation
@@ -1183,11 +1454,28 @@ watdep.fpkm <- log10(watdep.fpkm + 1)
 watdep.fpkm <- BindTairName(watdep.fpkm)
 
 
+## plot water deprivation
+g.fpkm <- watdep.fpkm[, 1:36]
+rownames(g.fpkm) <- watdep.fpkm[, 38]
+pdf(paste0(path.geneprof, '/water.deprivation.homeologs.pdf'), 13, 36)
+heatmap.2(as.matrix(g.fpkm), trace = "none", scale = "row", dendrogram = "row", Colv = F,
+          hclustfun = function(x) hclust(x,method = 'ward.D2'), lhei = c(1, 18),
+          density.info = "none", col = COLSFUNC2(), key.xlab = "z-score",
+          colsep = c(9, 18, 27, 36), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
+dev.off()
+
+
+
+
+
+
+
+
 ## response to ethylene
 ethylene.genes <- GO2CARHR[['GO:0009723']]
 ethylene.genes <- intersect(ethylene.genes, rownames(ca$fpkm$AA))
-ethylene.fpkm <- cbind(ca$fpkm$AA[ethylene.genes, ], ca$fpkm$IA[ethylene.genes, ], 
-                       ca$fpkm$IR[ethylene.genes, ], ca$fpkm$RR[ethylene.genes, ])
+ethylene.fpkm  <- cbind(ca$fpkm$AA[ethylene.genes, ], ca$fpkm$IA[ethylene.genes, ], 
+                        ca$fpkm$IR[ethylene.genes, ], ca$fpkm$RR[ethylene.genes, ])
 colnames(ethylene.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
                                 '  ', colnames(ethylene.fpkm))
 ethylene.fpkm <- log10(ethylene.fpkm + 1)
@@ -1195,6 +1483,123 @@ ethylene.fpkm <- BindTairName(ethylene.fpkm)
 
 SaveExcel(list(meristem = meristem.fpkm, waterdep = watdep.fpkm, ethylene = ethylene.fpkm),
           file = paste0(path.geneprof, '/gene.prof.xls'))
+
+
+allexpgene.fpkm <- cbind(ca$fpkm$AA, ca$fpkm$IA, 
+                         ca$fpkm$IR, ca$fpkm$RR)
+colnames(allexpgene.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+                                '  ', colnames(allexpgene.fpkm))
+allexpgene.fpkm <- log10(allexpgene.fpkm + 1)
+allexpgene.fpkm <- BindTairName(allexpgene.fpkm)
+
+SaveExcel(list(all.exp.genes = allexpgene.fpkm),
+          file = paste0(path.geneprof, '/gene.prof.all.xls'))
+
+
+
+
+
+
+
+erf1.exp <- plotGeneExpTimecourse(ca, 'CARHR099190') # ERF1
+cca1.exp <- plotGeneExpTimecourse(ca, 'CARHR142180') # CCA1
+pdf1.exp <- plotGeneExpTimecourse(ca, 'CARHR137920') # PDF1
+stp6.exp <- plotGeneExpTimecourse(ca, 'CARHR080460') # STP6
+
+pdf(paste0(path.geneprof, '/ERF1.geneexp.pdf'), 6, 2.5)
+plot(erf1.exp$exp)
+dev.off()
+pdf(paste0(path.geneprof, '/ERF1.ratio.pdf'), 5, 2.1)
+plot(erf1.exp$ratio)
+dev.off()
+
+pdf(paste0(path.geneprof, '/CCA1.geneexp.pdf'), 6, 2.5)
+plot(cca1.exp$exp)
+dev.off()
+pdf(paste0(path.geneprof, '/CCA1.ratio.pdf'), 5, 2.1)
+plot(cca1.exp$ratio)
+dev.off()
+
+pdf(paste0(path.geneprof, '/PDF1.geneexp.pdf'), 6, 2.5)
+plot(pdf1.exp$exp)
+dev.off()
+pdf(paste0(path.geneprof, '/PDF1.ratio.pdf'), 5, 2.1)
+plot(pdf1.exp$ratio)
+dev.off()
+
+
+pdf(paste0(path.geneprof, '/STP6.geneexp.pdf'), 6, 2.5)
+plot(stp6.exp$exp)
+dev.off()
+pdf(paste0(path.geneprof, '/STP61.ratio.pdf'), 5, 2.1)
+plot(stp6.exp$ratio)
+dev.off()
+
+
+
+
+
+golist <- list(
+    A = rownames(ca$VEHGO)[!is.na(ca$VEHGO[, "A"])],
+    R = rownames(ca$VEHGO)[!is.na(ca$VEHGO[, "R"])],
+    IA = rownames(ca$VEHGO)[!is.na(ca$VEHGO[, "IA"])],
+    IR = rownames(ca$VEHGO)[!is.na(ca$VEHGO[, "IR"])]
+)
+
+venn.diagram(golist, fill = pal_nejm()(4), alpha = rep(0.6, 4),
+             height = 1600, width = 1600, main.cex = 1,
+             filename = paste0(path.geneprof, '/govenn.tiff'))
+
+
+
+
+Plot.VEH.GO.Profile(ca, 'GO:0009414') # water deprivation
+Plot.VEH.GO.Profile(ca, 'GO:0009738') # abscisic acid-activated signaling pathway
+Plot.VEH.GO.Profile(ca, 'GO:0009737') # response to ABS
+Plot.VEH.GO.Profile(ca, 'GO:0009723') # ethylene
+Plot.VEH.GO.Profile(ca, 'GO:0071215') #
+Plot.VEH.GO.Profile(ca, 'GO:0009873') # ehtylene activate pathway
+Plot.VEH.GO.Profile(ca, 'GO:0009688') # ABS acid biosynthetic process
+
+
+
+# LEC1, STM, LAS, BBM/PLT4, CUC1, CUC2
+fl <- c('CARHR022320', 'CARHR049560', 'CARHR045280', 'CARHR195780', 'CARHR090150',
+        'CARHR267090', 'CARHR096710', 'CARHR041230', 'CARHR202780', 'CARHR094250',
+        'CARHR245020', 'CARHR279490', 'CARHR259260', 'CARHR063720', 'CARHR188260',
+        'CARHR202230', 'CARHR239940', 'CARHR023820', 'CARHR048650', 'CARHR015300',
+        'CARHR066610', 'CARHR274370', 'CARHR004640', 'CARHR131950')
+for (.fl in fl) {
+    fAA <- log10(ca$fpkm$AA[.fl, ] + 1)
+    fIA <- log10(ca$fpkm$IA[.fl, ] + 1)
+    fRR <- log10(ca$fpkm$RR[.fl, ] + 1)
+    fIR <- log10(ca$fpkm$IR[.fl, ] + 1)
+    xdf <- data.frame(
+        fpkm = c(fAA, fIA, fIR, fRR),
+        #time = c(names(fAA), names(fIA), names(fIR), names(fRR)),
+        time = rep(c(0, 2, 4, 8, 12, 24, 48, 72, 96), times = 4),
+        species = rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = length(fAA))
+    )
+    xdf$species <- factor(xdf$species, levels = c('C. amara', 'IA', 'IR', 'C. rivularis'))
+    g <- ggplot(xdf, aes(x = time, y = fpkm, group = species))
+    g <- g + geom_line()
+    g <- g + scale_x_continuous(breaks = c(0, 2, 4, 8, 12, 24, 48, 72, 96))
+    g <- g + facet_grid(. ~ species)
+    g <- g + ggtitle(paste0(.fl, ' / ', CARHR2TAIR[[.fl]], ' (', CARHR2NAME[[.fl]], ')'))
+    g <- g + xlab('hours after submergence') + ylab('log10(FPKM + 1)')
+    png(paste0('result_files/timecourse/', .fl, '.png'), 1200, 280)
+    print(g)
+    dev.off()
+}
+
+
+
+
+
+
+
+
+
 
 
 
