@@ -1259,6 +1259,7 @@ for (i in 1:9) {
     print(g)
     dev.off()
 }
+cci <- rep(NA, 9)
 for (i in 1:9) {
     xa <- ca$count$IA[, i]
     xr <- ca$count$IR[, i]
@@ -1268,14 +1269,30 @@ for (i in 1:9) {
     df <- data.frame(gene = names(keep)[keep], A = log10(xa[keep] + 1), R = log10(xr[keep] + 1))
     g <- ggplot(df, aes(x = A, y = R))
     g <- g + geom_point(alpha = .3) + coord_fixed() + theme_bw()
-    g <- g + xlab('log10(count) of IA') + ylab('log10(count) of IR')
-    #g <- g + geom_abline(slope = log10(2) + 1, intercept = 0)
+    g <- g + xlab('log10(count) of A-origin reads') + ylab('log10(count) of R-origin reads')
+    g <- g + geom_abline(slope = 1, intercept = log10(2), color = '#DF8F44')
     pdf(paste0(path.expbias, "/count-cinuseta-scatter-", TIMELABELS[i], ".pdf"), 4, 4)
     print(g)
     dev.off()
+    cci[i] <- cor(df$A, df$R)
 }
 
-
+## scatter plots between homeologs at each time points
+ccp <- rep(NA, 9)
+for (i in 1:9) {
+    fa <- ca$fpkm$AA[, i]
+    fr <- ca$fpkm$RR[, i]
+    keep <- (fa > 1) | (fr > 1)
+    df <- data.frame(gene = names(keep)[keep], A = log10(fa[keep] + 1), R = log10(fr[keep] + 1))
+    g <- ggplot(df, aes(x = A, y = R))
+    g <- g + geom_point(alpha = .3) + coord_fixed() + theme_bw()
+    g <- g + xlab('log10(C. amara FPKM)') + ylab('log10(C. rivularis FPKM)')
+    g <- g + xlim(0, 5) + ylim(0, 5) 
+    pdf(paste0(path.expbias, "/FPKM-parent-scatter-", TIMELABELS[i], ".pdf"), 4, 4)
+    print(g)
+    dev.off()
+    ccp[i] <- cor(df$A, df$R)
+}
 
 
 
