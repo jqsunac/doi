@@ -1580,12 +1580,16 @@ Plot.VEH.GO.Profile(ca, 'GO:0009688') # ABS acid biosynthetic process
 
 
 
-# LEC1, STM, LAS, BBM/PLT4, CUC1, CUC2
+# LEC1, STM, LAS, BBM/PLT4, CUC1, CUC2, CUC3
 fl <- c('CARHR022320', 'CARHR049560', 'CARHR045280', 'CARHR195780', 'CARHR090150',
         'CARHR267090', 'CARHR096710', 'CARHR041230', 'CARHR202780', 'CARHR094250',
         'CARHR245020', 'CARHR279490', 'CARHR259260', 'CARHR063720', 'CARHR188260',
         'CARHR202230', 'CARHR239940', 'CARHR023820', 'CARHR048650', 'CARHR015300',
-        'CARHR066610', 'CARHR274370', 'CARHR004640', 'CARHR131950')
+        'CARHR066610', 'CARHR274370', 'CARHR004640', 'CARHR131950', 'CARHR069980',
+        'CARHR099190', 'CARHR142180', 'CARHR137920' # ERF1, CCA1, PDF1 
+        )
+
+dir.create('result_files/timecourse/meristem', recursive = TRUE)
 for (.fl in fl) {
     fAA <- log10(ca$fpkm$AA[.fl, ] + 1)
     fIA <- log10(ca$fpkm$IA[.fl, ] + 1)
@@ -1604,7 +1608,7 @@ for (.fl in fl) {
     g <- g + facet_grid(. ~ species)
     g <- g + ggtitle(paste0(.fl, ' / ', CARHR2TAIR[[.fl]], ' (', CARHR2NAME[[.fl]], ')'))
     g <- g + xlab('hours after submergence') + ylab('log10(FPKM + 1)')
-    png(paste0('result_files/timecourse/', .fl, '.png'), 1200, 280)
+    png(paste0('result_files/timecourse/meristem/', .fl, '.png'), 1200, 280)
     print(g)
     dev.off()
 }
@@ -1613,6 +1617,33 @@ for (.fl in fl) {
 
 
 
+
+fl <- c('CARHR163320', 'CARHR171770', 'CARHR187720', 'CARHR285680',
+        'CARHR271420', 'CARHR064080', 'CARHR066510', 'CARHR131280')
+
+dir.create('result_files/timecourse/waterdep', recursive = TRUE)
+for (.fl in fl) {
+    fAA <- log10(ca$fpkm$AA[.fl, ] + 1)
+    fIA <- log10(ca$fpkm$IA[.fl, ] + 1)
+    fRR <- log10(ca$fpkm$RR[.fl, ] + 1)
+    fIR <- log10(ca$fpkm$IR[.fl, ] + 1)
+    xdf <- data.frame(
+        fpkm = c(fAA, fIA, fIR, fRR),
+        #time = c(names(fAA), names(fIA), names(fIR), names(fRR)),
+        time = rep(c(0, 2, 4, 8, 12, 24, 48, 72, 96), times = 4),
+        species = rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = length(fAA))
+    )
+    xdf$species <- factor(xdf$species, levels = c('C. amara', 'IA', 'IR', 'C. rivularis'))
+    g <- ggplot(xdf, aes(x = time, y = fpkm, group = species))
+    g <- g + geom_line()
+    g <- g + scale_x_continuous(breaks = c(0, 2, 4, 8, 12, 24, 48, 72, 96))
+    g <- g + facet_grid(. ~ species)
+    g <- g + ggtitle(paste0(.fl, ' / ', CARHR2TAIR[[.fl]], ' (', CARHR2NAME[[.fl]], ')'))
+    g <- g + xlab('hours after submergence') + ylab('log10(FPKM + 1)')
+    png(paste0('result_files/timecourse/waterdep/', .fl, '.png'), 1200, 280)
+    print(g)
+    dev.off()
+}
 
 
 
