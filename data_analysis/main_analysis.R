@@ -1,30 +1,18 @@
 ## R code for homeolog expression analysis
 
 set.seed(2016)
-suppressMessages(require(MASS))
-#suppressMessages(require(RUnit))
-#suppressMessages(require(knitr))
-suppressMessages(require(XLConnect))
-suppressMessages(require(RColorBrewer))
-suppressMessages(require(reshape2))
-suppressMessages(require(ggplot2))
-suppressMessages(require(ggsci))
-suppressMessages(require(ggExtra))
-suppressMessages(require(gplots))
-suppressMessages(require(VennDiagram))
-#suppressMessages(require(grid))
-#suppressMessages(require(scales))
-#suppressMessages(require(outliers))
-#suppressMessages(require(fBasics))
-#suppressMessages(require(edgeR))
-#suppressMessages(require(TCC))
-suppressMessages(require(GO.db))
-suppressMessages(require(org.At.tair.db))
-suppressMessages(require(clusterProfiler))
-#suppressMessages(require(plyr))
-#suppressMessages(require(genefilter))
-#suppressMessages(require(googleVis))
-#suppressMessages(require(venneuler))
+library(MASS)
+library(XLConnect)
+library(RColorBrewer)
+library(reshape2)
+library(ggplot2)
+library(ggsci)
+library(ggExtra)
+library(gplots)
+library(VennDiagram)
+library(GO.db)
+library(org.At.tair.db)
+library(clusterProfiler)
 
 
 options(stringsAsFactors = FALSE)
@@ -521,23 +509,28 @@ PlotPCA <- function(ca) {
     pca.pc.coords <- data.frame(pcaobj$x,
                                 fpkm = fpkm.class,
                                 time = time)
-    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC1, y = PC2, color = fpkm, label = time))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text(size = 8) + scale_color_nejm() + coord_fixed()
+    pca.pc.coords$time <- factor(pca.pc.coords$time,
+                                 levels = c('0', '2', '4', '8', '12', '24', '48', '72', '96'))
+
+    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC1, y = PC2, shape = time, color = fpkm))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_point() + scale_color_nejm() + coord_fixed() 
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + scale_shape_manual(values=c(16, 17, 15, 1:6))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + theme_bw() + guides(color = guide_legend(title = ''))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC1 (', summary(pcaobj)$importance[2, 1] * 100, '%)'))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC2 (', summary(pcaobj)$importance[2, 2] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC1 (', round(summary(pcaobj)$importance[2, 1] * 100, 1), '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC2 (', round(summary(pcaobj)$importance[2, 2] * 100, 1), '%)'))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-30, 30) + ylim(-30, 30)
-    png(paste0(path.lib, '/pca.pc1pc2.png'), 460, 400)
+    png(paste0(path.lib, '/pca.pc1pc2.png'), 920, 1400, res=250)
     plot(pca.pc.coords.ggplot)
     dev.off()
 
-    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC1, y = PC3, color = fpkm, label = time))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_text(size = 8) + scale_color_nejm() + coord_fixed()
+    pca.pc.coords.ggplot <- ggplot(pca.pc.coords, aes(x = PC2, y = PC3, color = fpkm, shape = time))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + geom_point() + scale_color_nejm() + coord_fixed()
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + scale_shape_manual(values=c(16, 17, 15, 1:6))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + theme_bw() + guides(color = guide_legend(title = ''))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC1 (', summary(pcaobj)$importance[2, 1] * 100, '%)'))
-    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC3 (', summary(pcaobj)$importance[2, 3] * 100, '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlab(paste0('PC2 (', round(summary(pcaobj)$importance[2, 1] * 100, 1), '%)'))
+    pca.pc.coords.ggplot <- pca.pc.coords.ggplot + ylab(paste0('PC3 (', round(summary(pcaobj)$importance[2, 3] * 100, 1), '%)'))
     pca.pc.coords.ggplot <- pca.pc.coords.ggplot + xlim(-30, 30) + ylim(-30, 30)
-    png(paste0(path.lib, '/pca.pc1pc3.png'), 460, 400)
+    png(paste0(path.lib, '/pca.pc2pc3.png'), 920, 1400, res=250)
     plot(pca.pc.coords.ggplot)
     dev.off()
 
@@ -557,24 +550,25 @@ PlotAoriginRatioDist <- function(ca) {
         dfr <- rbind(dfr, dfi)
     }
     
-    dfr$time <- factor(dfr$time, levels = paste0(TIMELABELS, " (", apply(target.homeologs, 2, sum), " homeologs)"))
+    dfr$time <- factor(dfr$time, levels = unique(dfr$time))
     
     g <- ggplot(dfr, aes(x = value))
     g <- g + geom_histogram(binwidth = 0.025)
     g <- g + theme_bw()
     g <- g + theme(axis.text.x = element_text(angle = 90, vjust = 0.5), legend.position = "none",
                    strip.background = element_rect(fill = "white", colour = "white"))
-    g <- g + scale_x_continuous(breaks = c(0, 0.2, 1/3, 0.4, 0.6, 0.8, 1), minor_breaks = NULL)
-    g <- g + facet_grid(~ time)#, ncol = 5)
+    g <- g + scale_x_continuous(breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1), minor_breaks = NULL)
+    g <- g + geom_vline(xintercept = 1/3, color = '#D55E00')
+    g <- g + facet_wrap(~ time, ncol = 3)
     g <- g + xlab("A-origin ratio") + ylab("frequency")
     ca$BIAS$aorigin.ratio.dist <- g
-
-    png(paste0(path.expbias, "/AOriginRatio.hist.lib.png"), 1000, 240)
+    
+    pdf(paste0(path.expbias, "/AOriginRatio.hist.lib.pdf"), 6, 6)
     options(digits=2)
     plot(g)
     dev.off()
     options(digits=6)
-     
+    
      
     R <- (ca$fpkm$AA/2) / (ca$fpkm$AA/2 + ca$fpkm$RR)
     dfr <- NULL
@@ -944,11 +938,20 @@ IdentifyVEH <- function(ca) {
     go2desc[r.go$go$ID[r.go$go$qvalue < 0.1]] <- r.go$go$Description[r.go$go$qvalue < 0.1]
     go2desc[A.go$go$ID[A.go$go$qvalue < 0.1]] <- A.go$go$Description[A.go$go$qvalue < 0.1]
     go2desc[R.go$go$ID[R.go$go$qvalue < 0.1]] <- R.go$go$Description[R.go$go$qvalue < 0.1]
-
-    gomat[a.go$go$ID[a.go$go$qvalue < 0.1], "IA"] <- -log10(a.go$go$qvalue[a.go$go$qvalue < 0.1])
-    gomat[r.go$go$ID[r.go$go$qvalue < 0.1], "IR"] <- -log10(r.go$go$qvalue[r.go$go$qvalue < 0.1])
-    gomat[A.go$go$ID[A.go$go$qvalue < 0.1], "A"] <- -log10(A.go$go$qvalue[A.go$go$qvalue < 0.1])
-    gomat[R.go$go$ID[R.go$go$qvalue < 0.1], "R"] <- -log10(R.go$go$qvalue[R.go$go$qvalue < 0.1])
+    
+    tpm <- a.go$go$qvalue; names(tpm) <- a.go$go$ID
+    gomat[, "IA"] <- -log10(tpm[rownames(gomat)])
+    tpm <- r.go$go$qvalue; names(tpm) <- r.go$go$ID
+    gomat[, "IR"] <- -log10(tpm[rownames(gomat)])
+    tpm <- A.go$go$qvalue; names(tpm) <- A.go$go$ID
+    gomat[, "A"] <- -log10(tpm[rownames(gomat)])
+    tpm <- R.go$go$qvalue; names(tpm) <- R.go$go$ID
+    gomat[, "R"] <- -log10(tpm[rownames(gomat)])
+    
+    #gomat[a.go$go$ID[a.go$go$qvalue < 0.1], "IA"] <- -log10(a.go$go$qvalue[a.go$go$qvalue < 0.1])
+    #gomat[r.go$go$ID[r.go$go$qvalue < 0.1], "IR"] <- -log10(r.go$go$qvalue[r.go$go$qvalue < 0.1])
+    #gomat[A.go$go$ID[A.go$go$qvalue < 0.1], "A"] <- -log10(A.go$go$qvalue[A.go$go$qvalue < 0.1])
+    #gomat[R.go$go$ID[R.go$go$qvalue < 0.1], "R"] <- -log10(R.go$go$qvalue[R.go$go$qvalue < 0.1])
 
     df <- data.frame(gomat, desc = go2desc)
     SaveExcel(list(Sheet1 = df), file.name = paste0(path.expbias, "/VEH_GOresults.xlsx"))
@@ -1149,6 +1152,17 @@ plotGeneExpTimecourse <- function(ca, g) {
 
 
 
+## save GO genes into Excel
+annotVEH <- function(glist) {
+    VEH.A <- (glist %in% ca$VEH$AA$gene)
+    VEH.a <- (glist %in% ca$VEH$IA$gene)
+    VEH.r <- (glist %in% ca$VEH$IR$gene)
+    VEH.R <- (glist %in% ca$VEH$RR$gene)
+    df <- data.frame(VEH_AA = VEH.A, VEH_IA = VEH.a, VEH_IR = VEH.r, VEH_RR = VEH.R)
+    df
+}
+ 
+
 Plot.VEH.GO.Profile <- function(ca, goid) {
     go.enriched.genes <- GO2CARHR[[goid]]
     veh.genes.A <- ca$VEH$AA$gene
@@ -1203,17 +1217,39 @@ Plot.VEH.GO.Profile <- function(ca, goid) {
     fc.a <- f.a[, -1] - f.a[, 1]
     fc.r <- f.r[, -1] - f.r[, 1]
     fc.R <- f.R[, -1] - f.R[, 1]
+
+
+
     fcsheet <- cbind(fc.A[all.gene.set, ], fc.a[all.gene.set, ], fc.r[all.gene.set, ], fc.R[all.gene.set, ])
     fcsheet <- BindTairName(fcsheet)
+    fcsheet <- cbind(fcsheet, annotVEH(rownames(fcsheet)))
     SaveExcel(list(Sheet1=fcsheet),
               file = paste0(path.de, '/gene.prof.diff.go', gsub(':', '', goid) , '.alldata.xlsx'))
     
-    #heatmap.2(as.matrix(gene.fc.list[[4]]), trace = "none", scale = "none", dendrogram = "row", Colv = F,
-    #          hclustfun = function(x) hclust(x,method = 'ward.D2'), lhei = c(8, 30),
-    #          density.info = "none", col = COLSFUNC2(), key.xlab = "log2-foldchange", key.title = '',
-    #          cexRow = 0.7, cexCol = 0.7)
+    matfc <- cbind(fc.A, fc.a, fc.r, fc.R)
+    colnames(matfc) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 8), ' (',colnames(matfc), ')')
+    rownames(matfc) <- fcsheet$name
+    png(paste0(path.de, '/gene.prof.diff.go', gsub(':', '', goid) , '.alldata.png'), 2000, 2200, res=220)
+    heatmap.2(as.matrix(matfc), trace = "none", scale = "none", Rowv = T, Colv = T,
+              hclustfun = function(x) hclust(x,method = 'ward.D2'), lhei = c(8, 30),
+              density.info = "none", col = COLSFUNC2(), key.xlab = "log2-foldchange", key.title = '',
+              cexRow = 0.7, cexCol = 0.7)
+    dev.off()
+
 }
 
+
+
+MeltToFC <- function(mat) {
+    mat <- log2(mat + 1)
+    mat.A <- mat[, 2:9] - mat[, 1]
+    mat.a <- mat[, 11:18] - mat[, 10]
+    mat.r <- mat[, 20:27] - mat[, 19]
+    mat.R <- mat[, 29:36] - mat[, 28]
+    
+    matfc <- cbind(mat.A, mat.a, mat.r, mat.R)
+    matfc
+}
 
 
 
@@ -1404,7 +1440,7 @@ g <- c('CARHR049560', # STM/BUM
        'CARHR137920') # PDF1
 g <- rev(g)
 g.fpkm <- cbind(ca$fpkm$AA[g, ], ca$fpkm$IA[g, ], ca$fpkm$IR[g, ], ca$fpkm$RR[g, ])
-rownames(g.fpkm) <- rev(c('STM', 'BAM1', 'BAM2', 'BAM3', 'PLT3', 'REV', 'PDF1'))
+rownames(g.fpkm) <- rev(c('STM/BUM', 'BAM1', 'BAM2', 'BAM3', 'PLT3', 'REV', 'PDF1'))
 colnames(g.fpkm) <- paste0(rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = 9),
                            '  ', colnames(g.fpkm))
 .g.fpkm <- t(apply(log10(g.fpkm + 1), 1, scale))
@@ -1485,6 +1521,31 @@ dev.off()
 
 
 
+## 	alcohol metabolic process
+alcohol.genes <- GO2CARHR[['GO:0006066']]
+alcohol.genes <- intersect(alcohol.genes, rownames(ca$fpkm$AA))
+alcohol.fpkm <- cbind(ca$fpkm$AA[alcohol.genes, ], ca$fpkm$IA[alcohol.genes, ], 
+                     ca$fpkm$IR[alcohol.genes, ], ca$fpkm$RR[alcohol.genes, ])
+colnames(alcohol.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
+                                '  ', colnames(alcohol.fpkm))
+alcohol.fpkm <- log10(alcohol.fpkm + 1)
+alcohol.fpkm <- BindTairName(alcohol.fpkm)
+
+
+## plot 	alcohol metabolic process
+g.fpkm <- alcohol.fpkm[, 1:36]
+rownames(g.fpkm) <- alcohol.fpkm[, 38]
+pdf(paste0(path.geneprof, '/alcohol_metabolic_processs.homeologs.pdf'), 13, 36)
+heatmap.2(as.matrix(g.fpkm), trace = "none", scale = "row", dendrogram = "row", Colv = F,
+          hclustfun = function(x) hclust(x,method = 'ward.D2'), lhei = c(1, 18),
+          density.info = "none", col = COLSFUNC2(), key.xlab = "z-score",
+          colsep = c(9, 18, 27, 36), sepwidth = c(0.1, 0.1), sepcolor = "white", cexRow = 0.8, cexCol = 0.8)
+dev.off()
+
+
+
+
+
 
 
 
@@ -1498,10 +1559,23 @@ colnames(ethylene.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
 ethylene.fpkm <- log10(ethylene.fpkm + 1)
 ethylene.fpkm <- BindTairName(ethylene.fpkm)
 
-SaveExcel(list(meristem = meristem.fpkm, waterdep = watdep.fpkm, ethylene = ethylene.fpkm),
+
+
+
+
+meristem.fpkm <- cbind(meristem.fpkm, annotVEH(rownames(meristem.fpkm)))
+watdep.fpkm <- cbind(watdep.fpkm, annotVEH(rownames(watdep.fpkm)))
+ethylene.fpkm <- cbind(ethylene.fpkm, annotVEH(rownames(ethylene.fpkm)))
+alcohol.fpkm <- cbind(alcohol.fpkm, annotVEH(rownames(alcohol.fpkm)))
+
+SaveExcel(list(meristem = meristem.fpkm, waterdep = watdep.fpkm, ethylene = ethylene.fpkm,
+               alcoholmetabo = alcohol.fpkm),
           file = paste0(path.geneprof, '/gene.prof.xls'))
 
 
+
+
+## save all genes into Excel
 allexpgene.fpkm <- cbind(ca$fpkm$AA, ca$fpkm$IA, 
                          ca$fpkm$IR, ca$fpkm$RR)
 colnames(allexpgene.fpkm) <- paste0(rep(c('A', 'IA', 'IR', 'R'), each = 9),
@@ -1571,9 +1645,12 @@ venn.diagram(golist, fill = pal_nejm()(4), alpha = rep(0.6, 4),
 
 
 Plot.VEH.GO.Profile(ca, 'GO:0009414') # water deprivation
-Plot.VEH.GO.Profile(ca, 'GO:0009738') # abscisic acid-activated signaling pathway
-Plot.VEH.GO.Profile(ca, 'GO:0009737') # response to ABS
+Plot.VEH.GO.Profile(ca, 'GO:0006066') # alchol
 Plot.VEH.GO.Profile(ca, 'GO:0009723') # ethylene
+Plot.VEH.GO.Profile(ca, 'GO:0009738') # abscisic acid-activated signaling pathway
+Plot.VEH.GO.Profile(ca, 'GO:0006979') # response to ABS
+
+Plot.VEH.GO.Profile(ca, 'GO:0009737') # response to ABS
 Plot.VEH.GO.Profile(ca, 'GO:0071215') #
 Plot.VEH.GO.Profile(ca, 'GO:0009873') # ehtylene activate pathway
 Plot.VEH.GO.Profile(ca, 'GO:0009688') # ABS acid biosynthetic process
@@ -1586,11 +1663,23 @@ fl <- c('CARHR022320', 'CARHR049560', 'CARHR045280', 'CARHR195780', 'CARHR090150
         'CARHR245020', 'CARHR279490', 'CARHR259260', 'CARHR063720', 'CARHR188260',
         'CARHR202230', 'CARHR239940', 'CARHR023820', 'CARHR048650', 'CARHR015300',
         'CARHR066610', 'CARHR274370', 'CARHR004640', 'CARHR131950', 'CARHR069980',
+        'CARHR066610', 'CARHR064200', 'CARHR143940', 'CARHR023460',
+        'CARHR246030', 'CARHR164140', 'CARHR085820',
         'CARHR099190', 'CARHR142180', 'CARHR137920' # ERF1, CCA1, PDF1 
         )
 
 dir.create('result_files/timecourse/meristem', recursive = TRUE)
+.getlabel <- function(g) {
+    caa <- ifelse(g %in% ca$VEH$AA$gene, 'is', 'isnot')
+    cia <- ifelse(g %in% ca$VEH$IA$gene, 'is', 'isnot')
+    cir <- ifelse(g %in% ca$VEH$IR$gene, 'is', 'isnot')
+    crr <- ifelse(g %in% ca$VEH$RR$gene, 'is', 'isnot')
+    list(labels = c('C.~amara', 'I[A]', 'I[R]', 'C.~rivularis'),
+         colors = c(caa, cia, cir, crr))
+}
+
 for (.fl in fl) {
+    .flb <- .getlabel(.fl)
     fAA <- log10(ca$fpkm$AA[.fl, ] + 1)
     fIA <- log10(ca$fpkm$IA[.fl, ] + 1)
     fRR <- log10(ca$fpkm$RR[.fl, ] + 1)
@@ -1599,16 +1688,30 @@ for (.fl in fl) {
         fpkm = c(fAA, fIA, fIR, fRR),
         #time = c(names(fAA), names(fIA), names(fIR), names(fRR)),
         time = rep(c(0, 2, 4, 8, 12, 24, 48, 72, 96), times = 4),
-        species = rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = length(fAA))
+        species = rep(.flb$labels, each = length(fAA)),
+        VEH = rep(.flb$colors, each = length(fAA))
     )
-    xdf$species <- factor(xdf$species, levels = c('C. amara', 'IA', 'IR', 'C. rivularis'))
-    g <- ggplot(xdf, aes(x = time, y = fpkm, group = species))
-    g <- g + geom_line()
-    g <- g + scale_x_continuous(breaks = c(0, 2, 4, 8, 12, 24, 48, 72, 96))
-    g <- g + facet_grid(. ~ species)
+    xdf$species <- factor(xdf$species, levels = .flb$labels)
+    xdf$VEH <- factor(xdf$VEH, levels = c('isnot', 'is'))
+    g <- ggplot(xdf, aes(x = time, y = fpkm, group = species, colour = VEH))
+    g <- g + geom_line(size=2)
+    g <- g + scale_x_continuous(breaks = c(0,  4,  12, 24, 48, 72, 96))
+    g <- g + facet_grid(. ~ species, labeller = label_parsed)
     g <- g + ggtitle(paste0(.fl, ' / ', CARHR2TAIR[[.fl]], ' (', CARHR2NAME[[.fl]], ')'))
     g <- g + xlab('hours after submergence') + ylab('log10(FPKM + 1)')
-    png(paste0('result_files/timecourse/meristem/', .fl, '.png'), 1200, 280)
+	g <- g + theme(legend.text = element_text(size = 38), plot.title = element_text(size = 40),
+                   axis.text.x = element_text(size = 32),
+                   axis.text.y = element_text(size = 32),
+                   axis.title.x = element_text(size = 38),
+                   axis.title.y = element_text(size = 38),
+                   strip.text.x = element_text(size = 38),
+                   legend.position = 'none')
+    cols <- c('#1b1919', '#cc0c00')
+    if (length(unique(xdf$VEH)) == 1) {
+        cols <- ifelse(unique(xdf$VEH) == 'is', '#cc0c00', '#1b1919')
+    }
+    g <- g + scale_color_manual(values = cols)
+    png(paste0('result_files/timecourse/meristem/', .fl, '.png'), 2600, 480)
     print(g)
     dev.off()
 }
@@ -1620,9 +1723,9 @@ for (.fl in fl) {
 
 fl <- c('CARHR163320', 'CARHR171770', 'CARHR187720', 'CARHR285680',
         'CARHR271420', 'CARHR064080', 'CARHR066510', 'CARHR131280')
-
 dir.create('result_files/timecourse/waterdep', recursive = TRUE)
 for (.fl in fl) {
+    .flb <- .getlabel(.fl)
     fAA <- log10(ca$fpkm$AA[.fl, ] + 1)
     fIA <- log10(ca$fpkm$IA[.fl, ] + 1)
     fRR <- log10(ca$fpkm$RR[.fl, ] + 1)
@@ -1631,16 +1734,26 @@ for (.fl in fl) {
         fpkm = c(fAA, fIA, fIR, fRR),
         #time = c(names(fAA), names(fIA), names(fIR), names(fRR)),
         time = rep(c(0, 2, 4, 8, 12, 24, 48, 72, 96), times = 4),
-        species = rep(c('C. amara', 'IA', 'IR', 'C. rivularis'), each = length(fAA))
+        species = rep(.flb$labels, each = length(fAA)),
+        VEH = rep(.flb$colors, each = length(fAA))
     )
-    xdf$species <- factor(xdf$species, levels = c('C. amara', 'IA', 'IR', 'C. rivularis'))
-    g <- ggplot(xdf, aes(x = time, y = fpkm, group = species))
-    g <- g + geom_line()
-    g <- g + scale_x_continuous(breaks = c(0, 2, 4, 8, 12, 24, 48, 72, 96))
-    g <- g + facet_grid(. ~ species)
+    xdf$species <- factor(xdf$species, levels = .flb$labels)
+    xdf$VEH <- factor(xdf$VEH, levels = c('isnot', 'is'))
+    g <- ggplot(xdf, aes(x = time, y = fpkm, group = species, colour = VEH))
+    g <- g + geom_line(size=2)
+    g <- g + scale_x_continuous(breaks = c(0,  4,  12, 24, 48, 72, 96))
+    g <- g + facet_grid(. ~ species, labeller = label_parsed)
     g <- g + ggtitle(paste0(.fl, ' / ', CARHR2TAIR[[.fl]], ' (', CARHR2NAME[[.fl]], ')'))
     g <- g + xlab('hours after submergence') + ylab('log10(FPKM + 1)')
-    png(paste0('result_files/timecourse/waterdep/', .fl, '.png'), 1200, 280)
+	g <- g + theme(legend.text = element_text(size = 38), plot.title = element_text(size = 40),
+                   axis.text.x = element_text(size = 32),
+                   axis.text.y = element_text(size = 32),
+                   axis.title.x = element_text(size = 38),
+                   axis.title.y = element_text(size = 38),
+                   strip.text.x = element_text(size = 38),
+                   legend.position = 'none')
+    g <- g + scale_color_manual(values = c('#1b1919', '#cc0c00'))
+    png(paste0('result_files/timecourse/waterdep/', .fl, '.png'), 2600, 480)
     print(g)
     dev.off()
 }
