@@ -1665,8 +1665,12 @@ fl <- c('CARHR022320', 'CARHR049560', 'CARHR045280', 'CARHR195780', 'CARHR090150
         'CARHR066610', 'CARHR274370', 'CARHR004640', 'CARHR131950', 'CARHR069980',
         'CARHR066610', 'CARHR064200', 'CARHR143940', 'CARHR023460',
         'CARHR246030', 'CARHR164140', 'CARHR085820',
-        'CARHR099190', 'CARHR142180', 'CARHR137920' # ERF1, CCA1, PDF1 
-        )
+        'CARHR099190', 'CARHR142180', 'CARHR137920', # ERF1, CCA1, PDF1 
+        'CARHR128870', 'CARHR029900', 'CARHR069240', 'CARHR057050', 'CARHR279690',
+        'CARHR158740', 'CARHR200150', 'CARHR093320', 'CARHR285700', 'CARHR036610',
+        'CARHR085820', 'CARHR128040', 'CARHR021160', 'CARHR077710', 'CARHR195360',
+        'CARHR243890', 'CARHR021150')
+        
 
 dir.create('result_files/timecourse/meristem', recursive = TRUE)
 .getlabel <- function(g) {
@@ -1680,6 +1684,7 @@ dir.create('result_files/timecourse/meristem', recursive = TRUE)
 
 for (.fl in fl) {
     .flb <- .getlabel(.fl)
+    if (.fl %in% rownames(ca$fpkm$AA)) {
     fAA <- log10(ca$fpkm$AA[.fl, ] + 1)
     fIA <- log10(ca$fpkm$IA[.fl, ] + 1)
     fRR <- log10(ca$fpkm$RR[.fl, ] + 1)
@@ -1714,6 +1719,7 @@ for (.fl in fl) {
     png(paste0('result_files/timecourse/meristem/', .fl, '.png'), 2600, 480)
     print(g)
     dev.off()
+    }
 }
 
 
